@@ -1,82 +1,8 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import SupervisorSidebar from "../../components/SupervisorSidebar";
+import { projectsData, COLUMNS } from "../../data/ProjectsData";
 import "../../assets/styles.css";
-
-
-// ---- Mock data (swap for API data once Express/Mongo is connected) ----
-const PROJECT = {
-  name: "SOC Playbook Automation",
-  description: "Automating tier-1 incident response runbooks",
-  deadline: "14 Jul",
-  progress: 78,
-  contributors: 4,
-  priority: "High",
-  team: [
-    { initials: "ZF", color: "#db2777" },
-    { initials: "BK", color: "#7c3aed" },
-    { initials: "HM", color: "#2563eb" },
-  ],
-};
-
-const INITIAL_TASKS = [
-  {
-    id: 1,
-    title: "Write detection rules for lateral movement",
-    column: "To Do",
-    status: "Not started",
-    assignee: { initials: "HM", color: "#2563eb" },
-  },
-  {
-    id: 2,
-    title: "Draft escalation matrix v2",
-    column: "To Do",
-    due: "05 Jul",
-    assignee: { initials: "ZF", color: "#db2777" },
-  },
-  {
-    id: 3,
-    title: "Vendor API access request",
-    column: "To Do",
-    due: "08 Jul",
-    assignee: { initials: "BK", color: "#7c3aed" },
-  },
-  {
-    id: 4,
-    title: "Automate phishing-report triage playbook",
-    column: "In Progress",
-    progress: 60,
-    due: "03 Jul",
-    assignee: { initials: "HM", color: "#2563eb" },
-  },
-  {
-    id: 5,
-    title: "Integrate SOAR webhook for ticket creation",
-    column: "In Progress",
-    progress: 35,
-    assignee: { initials: "ZF", color: "#db2777" },
-  },
-  {
-    id: 6,
-    title: "Runbook: Credential dump response",
-    column: "Review",
-    status: "Awaiting review",
-    assignee: { initials: "BK", color: "#7c3aed" },
-  },
-  {
-    id: 7,
-    title: "Define playbook taxonomy & tagging",
-    column: "Done",
-    status: "Completed",
-    assignee: { initials: "ZF", color: "#db2777" },
-  },
-];
-
-const COLUMNS = [
-  { key: "To Do", label: "TO DO", accent: "#94a3b8" },
-  { key: "In Progress", label: "IN PROGRESS", accent: "#2563eb" },
-  { key: "Review", label: "REVIEW", accent: "#7c3aed" },
-  { key: "Done", label: "DONE", accent: "#059669" },
-];
 
 function statusClass(status) {
   if (status === "Completed") return "task-status status-completed";
@@ -85,8 +11,34 @@ function statusClass(status) {
 }
 
 export default function SupervisorProjectBoard() {
-  const [tasks, setTasks] = useState(INITIAL_TASKS);
+  const { projectId } = useParams();
+  const navigate = useNavigate();
+
+  const project = projectsData.find((p) => p.id === Number(projectId));
+
+  const [tasks, setTasks] = useState(project ? project.tasks : []);
   const [showModal, setShowModal] = useState(false);
+
+  useEffect(() => {
+    setTasks(project ? project.tasks : []);
+  }, [projectId]);
+
+  if (!project) {
+    return (
+      <div className="supervisor-layout">
+        <SupervisorSidebar />
+        <div className="sv-main-content">
+          <p>Project not found.</p>
+          <button
+            className="btn-primary"
+            onClick={() => navigate("/supervisor/dashboard")}
+          >
+            Back to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const grouped = useMemo(() => {
     const map = {};
@@ -105,15 +57,14 @@ export default function SupervisorProjectBoard() {
       <SupervisorSidebar />
 
       <div className="sv-main-content">
-        <div className="sv-breadcrumb">PROJECTS / {PROJECT.name}</div>
+        <div className="sv-breadcrumb">PROJECTS / {project.name}</div>
 
-        {/* Project header card */}
         <div className="project-header-card">
           <div className="project-header-top">
             <div>
-              <h1>{PROJECT.name}</h1>
+              <h1>{project.name}</h1>
               <p className="project-desc">
-                {PROJECT.description} · Deadline {PROJECT.deadline}
+                {project.description} · Deadline {project.deadline}
               </p>
             </div>
             <div className="project-progress-block">
@@ -124,7 +75,7 @@ export default function SupervisorProjectBoard() {
               >
                 + Assign Task
               </button>
-              <span className="project-progress-value">{PROJECT.progress}%</span>
+              <span className="project-progress-value">{project.progress}%</span>
               <span className="project-progress-label">overall progress</span>
             </div>
           </div>
@@ -132,11 +83,11 @@ export default function SupervisorProjectBoard() {
           <div className="project-meta-row">
             <div className="meta-tags">
               <span className="meta-tag">{tasks.length} tasks</span>
-              <span className="meta-tag">{PROJECT.contributors} contributors</span>
-              <span className="meta-tag">Priority: {PROJECT.priority}</span>
+              <span className="meta-tag">{project.contributors} contributors</span>
+              <span className="meta-tag">Priority: {project.priority}</span>
             </div>
             <div className="avatar-stack">
-              {PROJECT.team.map((m, i) => (
+              {project.team.map((m, i) => (
                 <span
                   key={i}
                   className="stack-avatar"
@@ -149,7 +100,6 @@ export default function SupervisorProjectBoard() {
           </div>
         </div>
 
-        {/* Task board */}
         <p className="board-label">TASK BOARD</p>
 
         <div className="board-columns">

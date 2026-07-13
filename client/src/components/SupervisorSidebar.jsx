@@ -20,7 +20,6 @@ function SupervisorSidebar() {
   return (
     <div className="supervisor-sidebar">
 
-      {/* PTS Logo - same image + structure as Admin and Intern */}
       <div className="ss-logo-section">
         <div className="ss-logo-icon">
           <img src={logo} alt="PTS Logo" className="ss-logo-img" />
@@ -30,18 +29,10 @@ function SupervisorSidebar() {
       <div className="ss-menu-section">
         <p className="ss-section-title">WORKSPACE</p>
 
-        <NavLink to="/supervisor/dashboard">
+        <NavLink to="/supervisor/dashboard" end>
           {({ isActive }) => (
             <div className={isActive ? "ss-menu-item active" : "ss-menu-item"}>
               Dashboard
-            </div>
-          )}
-        </NavLink>
-
-        <NavLink to="/supervisor/projects">
-          {({ isActive }) => (
-            <div className={isActive ? "ss-menu-item active" : "ss-menu-item"}>
-              My Projects
             </div>
           )}
         </NavLink>
@@ -76,7 +67,6 @@ function SupervisorSidebar() {
         </NavLink>
       </div>
 
-      {/* Profile + Logout - matches Admin/Intern structure exactly */}
       <div className="ss-profile-section">
         <div className="ss-avatar">{initials}</div>
         <div className="ss-profile-info">

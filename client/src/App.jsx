@@ -24,7 +24,6 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 
   if (!token) return <Navigate to="/" />;
 
-  // ✅ lowercase comparison so "Supervisor" and "supervisor" both work
   if (!allowedRoles.map(r => r.toLowerCase()).includes(role?.toLowerCase())) {
     return <Navigate to="/" />;
   }
@@ -78,51 +77,56 @@ function App() {
         {/* Supervisor Routes */}
         <Route path="/supervisor/dashboard" element={
           <ProtectedRoute allowedRoles={["supervisor"]}>
-            <SupervisorProjectBoard />
-          </ProtectedRoute>
-        } />
-        <Route path="/supervisor/projects" element={
-          <ProtectedRoute allowedRoles={["supervisor"]}>
             <SupervisorMyProjects />
           </ProtectedRoute>
         } />
+        <Route path="/supervisor/dashboard/:projectId" element={
+          <ProtectedRoute allowedRoles={["supervisor"]}>
+            <SupervisorProjectBoard />
+          </ProtectedRoute>
+        } />
         <Route path="/supervisor/team" element={
-  <ProtectedRoute allowedRoles={["supervisor"]}>
-    <SupervisorTeam />
-  </ProtectedRoute>
-} />
-<Route path="/supervisor/reports" element={
-  <ProtectedRoute allowedRoles={["supervisor"]}>
-    <SupervisorReports />
-  </ProtectedRoute>
-} />
-<Route path="/supervisor/notifications" element={
-  <ProtectedRoute allowedRoles={["supervisor"]}>
-    <SupervisorNotifications />
-  </ProtectedRoute>
-} />
-{/* Intern Routes */}
-<Route path="/intern/tasks" element={
+          <ProtectedRoute allowedRoles={["supervisor"]}>
+            <SupervisorTeam />
+          </ProtectedRoute>
+        } />
+        <Route path="/supervisor/reports" element={
+          <ProtectedRoute allowedRoles={["supervisor"]}>
+            <SupervisorReports />
+          </ProtectedRoute>
+        } />
+        <Route path="/supervisor/notifications" element={
+          <ProtectedRoute allowedRoles={["supervisor"]}>
+            <SupervisorNotifications />
+          </ProtectedRoute>
+        } />
+
+        {/* Intern Routes */}
+        <Route path="/intern/tasks" element={
+          <ProtectedRoute allowedRoles={["internee"]}>
+            <InternTasks />
+          </ProtectedRoute>
+        } />
+        <Route path="/intern/tasks/:projectId" element={
   <ProtectedRoute allowedRoles={["internee"]}>
     <InternTasks />
   </ProtectedRoute>
 } />
-<Route path="/intern/work-log" element={
-  <ProtectedRoute allowedRoles={["internee"]}>
-    <InternWorkLog />
-  </ProtectedRoute>
-} />
-<Route path="/intern/projects" element={
-  <ProtectedRoute allowedRoles={["internee"]}>
-    <InternMyProjects />
-  </ProtectedRoute>
-} />
-<Route path="/intern/notifications" element={
-  <ProtectedRoute allowedRoles={["internee"]}>
-    <InternNotifications />
-  </ProtectedRoute>
-} />
-       
+        <Route path="/intern/work-log" element={
+          <ProtectedRoute allowedRoles={["internee"]}>
+            <InternWorkLog />
+          </ProtectedRoute>
+        } />
+        <Route path="/intern/projects" element={
+          <ProtectedRoute allowedRoles={["internee"]}>
+            <InternMyProjects />
+          </ProtectedRoute>
+        } />
+        <Route path="/intern/notifications" element={
+          <ProtectedRoute allowedRoles={["internee"]}>
+            <InternNotifications />
+          </ProtectedRoute>
+        } />
 
         {/* Catch all */}
         <Route path="*" element={<Navigate to="/" />} />

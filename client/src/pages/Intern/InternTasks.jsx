@@ -1,42 +1,8 @@
 import { useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import InternSidebar from "../../components/InternSidebar";
+import { internProjectsData } from "../../data/InternProjectsData";
 import "../../assets/styles.css";
-
-const tasksData = [
-  {
-    id: 1,
-    title: "Close firewall gaps list — Network Hardening",
-    supervisor: "Bilal Khan",
-    progress: 20,
-    status: "Overdue",
-    dueLabel: "was due 28 Jun",
-    overdueDays: 2,
-  },
-  {
-    id: 2,
-    title: "Automate phishing-report triage playbook",
-    supervisor: "Ahmed Raza",
-    progress: 60,
-    status: "In progress",
-    dueLabel: "due in 3 days",
-  },
-  {
-    id: 3,
-    title: "Write detection rules for lateral movement",
-    supervisor: "Ahmed Raza",
-    progress: 0,
-    status: "Not started",
-    dueLabel: "due 05 Jul",
-  },
-  {
-    id: 4,
-    title: "Define playbook taxonomy & tagging",
-    supervisor: "Ahmed Raza",
-    progress: 100,
-    status: "Completed",
-    dueLabel: "completed",
-  },
-];
 
 const STATUS_STYLES = {
   Overdue: "it-badge overdue",
@@ -46,10 +12,22 @@ const STATUS_STYLES = {
 };
 
 export default function InternTasks() {
+  const { projectId } = useParams();
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("All");
 
   const filters = ["All", "This week", "Overdue"];
+
+  // If a projectId is in the URL, show only that project's tasks.
+  // Otherwise, show every task across every project (flat list).
+  const activeProject = projectId
+    ? internProjectsData.find((p) => p.id === Number(projectId))
+    : null;
+
+  const tasksData = activeProject
+    ? activeProject.tasks
+    : internProjectsData.flatMap((p) => p.tasks);
 
   const filtered = tasksData.filter((t) => {
     const matchSearch = t.title.toLowerCase().includes(search.toLowerCase());
@@ -61,17 +39,29 @@ export default function InternTasks() {
   const assigned = tasksData.length;
   const inProgress = tasksData.filter((t) => t.status === "In progress").length;
   const overdue = tasksData.filter((t) => t.status === "Overdue").length;
-  const avgProgress = Math.round(
-    tasksData.reduce((a, t) => a + t.progress, 0) / tasksData.length
-  );
+  const avgProgress = tasksData.length
+    ? Math.round(tasksData.reduce((a, t) => a + t.progress, 0) / tasksData.length)
+    : 0;
+
+  if (projectId && !activeProject) {
+    return (
+      <div className="smp-layout">
+        <InternSidebar />
+        <main className="smp-main it-main">
+          <p>Project not found.</p>
+          <button className="btn-primary" onClick={() => navigate("/intern/projects")}>
+            Back to My Projects
+          </button>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="smp-layout">
       <InternSidebar />
 
       <main className="smp-main it-main">
-
-        {/* ✅ Topbar - search left, filters right, no overdue pill */}
         <div className="it-topbar">
           <div className="it-search-wrap">
             <svg className="smp-search-icon" viewBox="0 0 20 20" fill="none">
@@ -85,7 +75,6 @@ export default function InternTasks() {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          {/* ✅ Filters moved to right side of topbar */}
           <div className="it-filters">
             {filters.map((f) => (
               <button
@@ -99,14 +88,28 @@ export default function InternTasks() {
           </div>
         </div>
 
-        <h1 className="it-title">My Tasks</h1>
-        <p className="it-subtitle">Everything assigned to you, sorted by deadline</p>
+        {activeProject ? (
+          <>
+            <p className="it-subtitle" style={{ marginBottom: 4 }}>
+              MY PROJECTS / {activeProject.name}
+            </p>
+            <h1 className="it-title">{activeProject.name}</h1>
+            <p className="it-subtitle">Tasks assigned to you for this project</p>
+          </>
+        ) : (
+          <>
+            <h1 className="it-title">My Tasks</h1>
+            <p className="it-subtitle">Everything assigned to you, sorted by deadline</p>
+          </>
+        )}
 
         <div className="it-stats">
           <div className="it-stat-card">
             <span className="it-stat-label">ASSIGNED</span>
             <span className="it-stat-value">{assigned}</span>
-            <span className="it-stat-sub">across 3 projects</span>
+            <span className="it-stat-sub">
+              {activeProject ? activeProject.name : `across ${internProjectsData.length} projects`}
+            </span>
           </div>
           <div className="it-stat-card">
             <span className="it-stat-label yellow">IN PROGRESS</span>

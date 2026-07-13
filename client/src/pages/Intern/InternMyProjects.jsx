@@ -1,40 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import InternSidebar from "../../components/InternSidebar";
+import { internProjectsData } from "../../data/InternProjectsData";
 import "../../assets/styles.css";
-
-const projectsData = [
-  {
-    id: 1,
-    name: "SOC Playbook Automation",
-    description: "Automating tier-1 incident response runbooks",
-    supervisor: "Ahmed Raza",
-    deadline: "14 Jul",
-    myTasks: 3,
-    progress: 78,
-    status: "In Progress",
-  },
-  {
-    id: 2,
-    name: "Network Hardening",
-    description: "Closing firewall gaps and tightening perimeter rules",
-    supervisor: "Bilal Khan",
-    deadline: "20 Jul",
-    myTasks: 1,
-    progress: 20,
-    status: "In Progress",
-  },
-  {
-    id: 3,
-    name: "Vulnerability Management Pipeline",
-    description: "Automated scanning, triage and remediation tracking",
-    supervisor: "Ahmed Raza",
-    deadline: "30 Jul",
-    myTasks: 2,
-    progress: 45,
-    status: "Planning",
-  },
-];
 
 const STATUS_COLORS = {
   "In Progress": { bg: "#eff6ff", text: "#2563eb", dot: "#3b82f6" },
@@ -49,7 +17,7 @@ export default function InternMyProjects() {
 
   const filters = ["All", "In Progress", "Planning", "Completed"];
 
-  const filtered = projectsData.filter((p) => {
+  const filtered = internProjectsData.filter((p) => {
     const matchStatus = filter === "All" || p.status === filter;
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase());
     return matchStatus && matchSearch;
@@ -67,7 +35,6 @@ export default function InternMyProjects() {
           </div>
         </div>
 
-        {/* ✅ Search left, filters right */}
         <div className="smp-toolbar">
           <div className="smp-search-wrap">
             <svg className="smp-search-icon" viewBox="0 0 20 20" fill="none">
@@ -92,8 +59,8 @@ export default function InternMyProjects() {
                 {f}
                 <span className="smp-filter-count">
                   {f === "All"
-                    ? projectsData.length
-                    : projectsData.filter((p) => p.status === f).length}
+                    ? internProjectsData.length
+                    : internProjectsData.filter((p) => p.status === f).length}
                 </span>
               </button>
             ))}
@@ -102,12 +69,22 @@ export default function InternMyProjects() {
 
         <div className="smp-stats">
           {[
-            { label: "Assigned Projects", value: projectsData.length },
-            { label: "In Progress", value: projectsData.filter((p) => p.status === "In Progress").length },
-            { label: "My Tasks Total", value: projectsData.reduce((a, p) => a + p.myTasks, 0) },
+            { label: "Assigned Projects", value: internProjectsData.length },
+            {
+              label: "In Progress",
+              value: internProjectsData.filter((p) => p.status === "In Progress").length,
+            },
+            {
+              label: "My Tasks Total",
+              value: internProjectsData.reduce((a, p) => a + p.tasks.length, 0),
+            },
             {
               label: "Avg Progress",
-              value: Math.round(projectsData.reduce((a, p) => a + p.progress, 0) / projectsData.length) + "%",
+              value:
+                Math.round(
+                  internProjectsData.reduce((a, p) => a + p.progress, 0) /
+                    internProjectsData.length
+                ) + "%",
             },
           ].map((s) => (
             <div className="smp-stat-card" key={s.label}>
@@ -136,7 +113,7 @@ export default function InternMyProjects() {
                 <div
                   className="smp-card"
                   key={project.id}
-                  onClick={() => navigate("/intern/tasks")}
+                  onClick={() => navigate(`/intern/tasks/${project.id}`)}
                 >
                   <div className="smp-card-top">
                     <span
@@ -164,9 +141,8 @@ export default function InternMyProjects() {
                     />
                   </div>
 
-                  {/* ✅ No calendar emoji, just text */}
                   <div className="smp-card-footer">
-                    <span className="smp-chip">{project.myTasks} of my tasks</span>
+                    <span className="smp-chip">{project.tasks.length} of my tasks</span>
                     <span className="smp-chip">Supervisor: {project.supervisor}</span>
                     <span className="smp-deadline">Due: {project.deadline}</span>
                   </div>
