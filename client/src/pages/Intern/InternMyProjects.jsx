@@ -56,7 +56,7 @@ export default function InternMyProjects() {
   });
 
   return (
-    <div className="smp-layout it-page">
+    <div className="smp-layout">
       <InternSidebar />
 
       <main className="smp-main">
@@ -67,6 +67,7 @@ export default function InternMyProjects() {
           </div>
         </div>
 
+        {/* ✅ Search left, filters right */}
         <div className="smp-toolbar">
           <div className="smp-search-wrap">
             <svg className="smp-search-icon" viewBox="0 0 20 20" fill="none">
@@ -106,10 +107,7 @@ export default function InternMyProjects() {
             { label: "My Tasks Total", value: projectsData.reduce((a, p) => a + p.myTasks, 0) },
             {
               label: "Avg Progress",
-              value:
-                Math.round(
-                  projectsData.reduce((a, p) => a + p.progress, 0) / projectsData.length
-                ) + "%",
+              value: Math.round(projectsData.reduce((a, p) => a + p.progress, 0) / projectsData.length) + "%",
             },
           ].map((s) => (
             <div className="smp-stat-card" key={s.label}>
@@ -166,10 +164,11 @@ export default function InternMyProjects() {
                     />
                   </div>
 
+                  {/* ✅ No calendar emoji, just text */}
                   <div className="smp-card-footer">
                     <span className="smp-chip">{project.myTasks} of my tasks</span>
                     <span className="smp-chip">Supervisor: {project.supervisor}</span>
-                    <span className="smp-deadline">📅 {project.deadline}</span>
+                    <span className="smp-deadline">Due: {project.deadline}</span>
                   </div>
                 </div>
               );

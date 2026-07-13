@@ -156,25 +156,32 @@ export default function SupervisorMyProjects() {
           </div>
         </div>
 
-        {/* Stats Row */}
-        <div className="smp-stats">
-          {[
-            { label: "Total Projects", value: projectsData.length },
-            { label: "In Progress", value: projectsData.filter((p) => p.status === "In Progress").length },
-            { label: "Completed", value: projectsData.filter((p) => p.status === "Completed").length },
-            {
-              label: "Avg Progress",
-              value:
-                Math.round(
-                  projectsData.reduce((a, p) => a + p.progress, 0) / projectsData.length
-                ) + "%",
-            },
-          ].map((s) => (
-            <div className="smp-stat-card" key={s.label}>
-              <span className="smp-stat-value">{s.value}</span>
-              <span className="smp-stat-label">{s.label}</span>
+        {/* Stats Row — now matches Admin's compact card style */}
+        <div className="ap-stats">
+          <div className="ap-stat-card" style={{ borderLeftColor: "#14b8a6" }}>
+            <div className="ap-stat-num" style={{ color: "#14b8a6" }}>{projectsData.length}</div>
+            <div className="ap-stat-label">Total Projects</div>
+          </div>
+          <div className="ap-stat-card" style={{ borderLeftColor: "#2563eb" }}>
+            <div className="ap-stat-num" style={{ color: "#2563eb" }}>
+              {projectsData.filter((p) => p.status === "In Progress").length}
             </div>
-          ))}
+            <div className="ap-stat-label">In Progress</div>
+          </div>
+          <div className="ap-stat-card" style={{ borderLeftColor: "#6b7280" }}>
+            <div className="ap-stat-num" style={{ color: "#6b7280" }}>
+              {projectsData.filter((p) => p.status === "Completed").length}
+            </div>
+            <div className="ap-stat-label">Completed</div>
+          </div>
+          <div className="ap-stat-card" style={{ borderLeftColor: "#d97706" }}>
+            <div className="ap-stat-num" style={{ color: "#d97706" }}>
+              {Math.round(
+                projectsData.reduce((a, p) => a + p.progress, 0) / projectsData.length
+              )}%
+            </div>
+            <div className="ap-stat-label">Avg Progress</div>
+          </div>
         </div>
 
         {/* Project Cards Grid */}
@@ -261,7 +268,6 @@ export default function SupervisorMyProjects() {
                   <div className="smp-card-footer">
                     <span className="smp-chip">{project.tasks} tasks</span>
                     <span className="smp-chip">{project.contributors} contributors</span>
-                    <span className="smp-deadline">📅 {project.deadline}</span>
                   </div>
                 </div>
               );

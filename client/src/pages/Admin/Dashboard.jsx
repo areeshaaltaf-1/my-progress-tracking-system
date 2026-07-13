@@ -1,6 +1,5 @@
 import Sidebar from "../../components/Sidebar";
 import Navbar from "../../components/Navbar";
-import StatCard from "../../components/Statcard";
 
 import "../../assets/styles.css";
 import {
@@ -96,12 +95,24 @@ function Dashboard() {
           <p>Real-time status across every division project.</p>
         </div>
 
-        {/* Stats Cards */}
-        <div className="cards">
-          <StatCard title="ACTIVE PROJECTS" value="14" subtitle="3 nearing deadline" color="#14b8a6" />
-          <StatCard title="OPEN TASKS" value="86" subtitle="Across 22 internees" color="#2563eb" />
-          <StatCard title="OVERDUE TASKS" value="7" subtitle="Needs supervisor action" color="#ef4444" />
-          <StatCard title="AVG COMPLETION" value="68%" subtitle="This month" color="#d97706" />
+        {/* Stats Cards — now matches All Projects' compact card style */}
+        <div className="ap-stats">
+          <div className="ap-stat-card" style={{ borderLeftColor: "#14b8a6" }}>
+            <div className="ap-stat-num" style={{ color: "#14b8a6" }}>14</div>
+            <div className="ap-stat-label">Active Projects</div>
+          </div>
+          <div className="ap-stat-card" style={{ borderLeftColor: "#2563eb" }}>
+            <div className="ap-stat-num" style={{ color: "#2563eb" }}>86</div>
+            <div className="ap-stat-label">Open Tasks</div>
+          </div>
+          <div className="ap-stat-card" style={{ borderLeftColor: "#ef4444" }}>
+            <div className="ap-stat-num" style={{ color: "#ef4444" }}>7</div>
+            <div className="ap-stat-label">Overdue Tasks</div>
+          </div>
+          <div className="ap-stat-card" style={{ borderLeftColor: "#d97706" }}>
+            <div className="ap-stat-num" style={{ color: "#d97706" }}>68%</div>
+            <div className="ap-stat-label">Avg Completion</div>
+          </div>
         </div>
 
         {/* Bottom Section */}

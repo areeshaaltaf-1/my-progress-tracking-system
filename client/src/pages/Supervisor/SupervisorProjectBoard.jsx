@@ -107,13 +107,6 @@ export default function SupervisorProjectBoard() {
       <div className="sv-main-content">
         <div className="sv-breadcrumb">PROJECTS / {PROJECT.name}</div>
 
-        <div className="sv-top-actions">
-          <button className="btn-outline">Filter</button>
-          <button className="btn-primary" onClick={() => setShowModal(true)}>
-            + Assign Task
-          </button>
-        </div>
-
         {/* Project header card */}
         <div className="project-header-card">
           <div className="project-header-top">
@@ -124,6 +117,13 @@ export default function SupervisorProjectBoard() {
               </p>
             </div>
             <div className="project-progress-block">
+              <button
+                className="btn-primary"
+                style={{ marginBottom: "12px" }}
+                onClick={() => setShowModal(true)}
+              >
+                + Assign Task
+              </button>
               <span className="project-progress-value">{PROJECT.progress}%</span>
               <span className="project-progress-label">overall progress</span>
             </div>

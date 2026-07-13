@@ -1,16 +1,32 @@
+import logo from "../assets/logo-bg.png";
 import "../assets/styles.css";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 
 function InternSidebar() {
+  const navigate = useNavigate();
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const initials = user.name
+    ? user.name.split(" ").map(n => n[0]).join("").toUpperCase()
+    : "IN";
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("role");
+    localStorage.removeItem("user");
+    navigate("/");
+  };
+
   return (
     <div className="intern-sidebar">
-      <div className="is-logo-section">
-        <div className="is-logo-icon">S</div>
-        <div>
-          <h1 className="is-logo">SIGNAL</h1>
-          <span className="is-logo-subtitle">INTERNEE</span>
-        </div>
-      </div>
+ {/* Single PTS logo icon - matches Intern/Supervisor sidebars */}
+    
+ <div className="logo-section">
+  <div className="pts-logo-icon">
+    <img src={logo} alt="PTS Logo" className="pts-logo-img" />
+  </div>
+</div>
+
+      
 
       <div className="is-menu-section">
         <p className="is-section-title">MY WORK</p>
@@ -53,13 +69,18 @@ function InternSidebar() {
         </NavLink>
       </div>
 
+      {/* Profile + Logout at bottom */}
       <div className="is-profile-section">
-        <div className="is-avatar">HM</div>
-        <div>
-          <h4>Hamza Malik</h4>
-          <p>INTERNEE</p>
+        <div className="is-avatar">{initials}</div>
+        <div className="is-profile-info">
+          <h4>{user.name || "Intern"}</h4>
+          <p>{user.role || "INTERNEE"}</p>
+          <button className="is-logout-btn" onClick={handleLogout}>
+            Logout
+          </button>
         </div>
       </div>
+
     </div>
   );
 }

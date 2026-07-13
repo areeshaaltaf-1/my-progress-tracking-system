@@ -53,7 +53,8 @@ export default function InternTasks() {
 
   const filtered = tasksData.filter((t) => {
     const matchSearch = t.title.toLowerCase().includes(search.toLowerCase());
-    const matchFilter = filter === "All" || (filter === "Overdue" ? t.status === "Overdue" : true);
+    const matchFilter =
+      filter === "All" || (filter === "Overdue" ? t.status === "Overdue" : true);
     return matchSearch && matchFilter;
   });
 
@@ -65,10 +66,12 @@ export default function InternTasks() {
   );
 
   return (
-    <div className="smp-layout it-page">
+    <div className="smp-layout">
       <InternSidebar />
 
       <main className="smp-main it-main">
+
+        {/* ✅ Topbar - search left, filters right, no overdue pill */}
         <div className="it-topbar">
           <div className="it-search-wrap">
             <svg className="smp-search-icon" viewBox="0 0 20 20" fill="none">
@@ -82,12 +85,18 @@ export default function InternTasks() {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          {overdue > 0 && (
-            <span className="it-overdue-pill">
-              <span className="it-overdue-dot" />
-              {overdue} overdue
-            </span>
-          )}
+          {/* ✅ Filters moved to right side of topbar */}
+          <div className="it-filters">
+            {filters.map((f) => (
+              <button
+                key={f}
+                className={`it-filter-btn ${filter === f ? "active" : ""}`}
+                onClick={() => setFilter(f)}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
         </div>
 
         <h1 className="it-title">My Tasks</h1>
@@ -113,17 +122,6 @@ export default function InternTasks() {
 
         <div className="it-active-header">
           <span className="it-active-label">ACTIVE TASKS</span>
-          <div className="it-filters">
-            {filters.map((f) => (
-              <button
-                key={f}
-                className={`it-filter-btn ${filter === f ? "active" : ""}`}
-                onClick={() => setFilter(f)}
-              >
-                {f}
-              </button>
-            ))}
-          </div>
         </div>
 
         {filtered.length === 0 ? (

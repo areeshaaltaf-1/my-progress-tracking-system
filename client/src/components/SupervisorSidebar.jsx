@@ -1,16 +1,29 @@
-
+import logo from "../assets/logo-bg.png";
 import "../assets/styles.css";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 
 function SupervisorSidebar() {
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("role");
+    localStorage.removeItem("user");
+    navigate("/");
+  };
+
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const initials = user.name
+    ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase()
+    : "S";
+
   return (
     <div className="supervisor-sidebar">
 
+      {/* PTS Logo - same image + structure as Admin and Intern */}
       <div className="ss-logo-section">
-        <div className="ss-logo-icon">S</div>
-        <div>
-          <h1 className="ss-logo">SIGNAL</h1>
-          <span className="ss-logo-subtitle">SUPERVISOR</span>
+        <div className="ss-logo-icon">
+          <img src={logo} alt="PTS Logo" className="ss-logo-img" />
         </div>
       </div>
 
@@ -32,8 +45,6 @@ function SupervisorSidebar() {
             </div>
           )}
         </NavLink>
-
-       
 
         <NavLink to="/supervisor/team">
           {({ isActive }) => (
@@ -65,11 +76,15 @@ function SupervisorSidebar() {
         </NavLink>
       </div>
 
+      {/* Profile + Logout - matches Admin/Intern structure exactly */}
       <div className="ss-profile-section">
-        <div className="ss-avatar">AR</div>
-        <div>
-          <h4>Ahmed Raza</h4>
-          <p>SUPERVISOR</p>
+        <div className="ss-avatar">{initials}</div>
+        <div className="ss-profile-info">
+          <h4>{user.name || "Supervisor"}</h4>
+          <p>{user.role || "SUPERVISOR"}</p>
+          <button onClick={handleLogout} className="logout-btn">
+            Logout
+          </button>
         </div>
       </div>
 

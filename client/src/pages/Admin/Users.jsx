@@ -125,22 +125,6 @@ function Users() {
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="users-tabs">
-          <button
-            className={`tab-btn ${activeTab === "view" ? "tab-active" : ""}`}
-            onClick={() => setActiveTab("view")}
-          >
-            View Users
-          </button>
-          <button
-            className={`tab-btn ${activeTab === "add" ? "tab-active" : ""}`}
-            onClick={() => setActiveTab("add")}
-          >
-            Add User
-          </button>
-        </div>
-
         {/* VIEW USERS */}
         {activeTab === "view" && (
           <div className="table-wrapper">
