@@ -12,6 +12,8 @@ function AllProjects() {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("All");
   const [showModal, setShowModal] = useState(false);
+  const [viewProject, setViewProject] = useState(null);
+  const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({
     projectName: "",
     description: "",
@@ -50,10 +52,25 @@ function AllProjects() {
     const matchStatus = filterStatus === "All" || p.status === filterStatus;
     return matchSearch && matchStatus;
   });
+  const today = new Date();
+
+  const totalCount = allProjects.length;
+  const completedCount = allProjects.filter((p) => p.status === "Completed").length;
+  const overdueCount = allProjects.filter(
+    (p) => p.status !== "Completed" && p.endDate && new Date(p.endDate) < today
+  ).length;
+  const activeCount = allProjects.filter(
+    (p) => p.status !== "Completed" && !(p.endDate && new Date(p.endDate) < today)
+  ).length;
   const handleCreate = async () => {
     try {
-      await api.post("/projects/create", form);
+      if (editingId) {
+        await api.put(`/projects/${editingId}`, form);
+      } else {
+        await api.post("/projects/create", form);
+      }
       setShowModal(false);
+      setEditingId(null);
       setForm({
         projectName: "",
         description: "",
@@ -64,7 +81,7 @@ function AllProjects() {
       });
       fetchProjects();
     } catch (err) {
-      console.error("Failed to create project", err);
+      console.error("Failed to save project", err);
     }
   };
 
@@ -91,7 +108,21 @@ function AllProjects() {
             <h1 className="ap-title">All Projects</h1>
             <p className="ap-sub">Manage and monitor every division project</p>
           </div>
-          <button className="btn-new" onClick={() => setShowModal(true)}>
+          <button
+            className="btn-new"
+            onClick={() => {
+              setEditingId(null);
+              setForm({
+                projectName: "",
+                description: "",
+                supervisor: "",
+                priority: "Medium",
+                startDate: "",
+                endDate: "",
+              });
+              setShowModal(true);
+            }}
+          >
             + New Project
           </button>
         </div>
@@ -99,19 +130,19 @@ function AllProjects() {
         {/* Stats Row */}
         <div className="ap-stats">
           <div className="ap-stat-card" style={{ borderLeftColor: "#14b8a6" }}>
-            <div className="ap-stat-num" style={{ color: "#14b8a6" }}>6</div>
+            <div className="ap-stat-num" style={{ color: "#14b8a6" }}>{totalCount}</div>
             <div className="ap-stat-label">Total Projects</div>
           </div>
           <div className="ap-stat-card" style={{ borderLeftColor: "#2563eb" }}>
-            <div className="ap-stat-num" style={{ color: "#2563eb" }}>4</div>
+            <div className="ap-stat-num" style={{ color: "#2563eb" }}>{activeCount}</div>
             <div className="ap-stat-label">Active</div>
           </div>
           <div className="ap-stat-card" style={{ borderLeftColor: "#ef4444" }}>
-            <div className="ap-stat-num" style={{ color: "#ef4444" }}>1</div>
+            <div className="ap-stat-num" style={{ color: "#ef4444" }}>{overdueCount}</div>
             <div className="ap-stat-label">Overdue</div>
           </div>
           <div className="ap-stat-card" style={{ borderLeftColor: "#6b7280" }}>
-            <div className="ap-stat-num" style={{ color: "#6b7280" }}>1</div>
+            <div className="ap-stat-num" style={{ color: "#6b7280" }}>{completedCount}</div>
             <div className="ap-stat-label">Completed</div>
           </div>
         </div>
@@ -196,8 +227,24 @@ function AllProjects() {
                     </td>
                     <td>
                       <div className="action-btns">
-                        <button className="btn-view">View</button>
-                        <button className="btn-edit">Edit</button>
+                        <button className="btn-view" onClick={() => setViewProject(p)}>View</button>
+                        <button
+                          className="btn-edit"
+                          onClick={() => {
+                            setEditingId(p._id);
+                            setForm({
+                              projectName: p.projectName,
+                              description: p.description,
+                              supervisor: p.supervisor?._id || "",
+                              priority: p.priority,
+                              startDate: p.startDate ? p.startDate.slice(0, 10) : "",
+                              endDate: p.endDate ? p.endDate.slice(0, 10) : "",
+                            });
+                            setShowModal(true);
+                          }}
+                        >
+                          Edit
+                        </button>
                         <button className="btn-delete" onClick={() => handleDelete(p._id)}>
                           Delete
                         </button>
@@ -221,7 +268,7 @@ function AllProjects() {
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>Create New Project</h2>
+              <h2>{editingId ? "Edit Project" : "Create New Project"}</h2>
               <button className="modal-close" onClick={() => setShowModal(false)}>✕</button>
             </div>
 
@@ -291,7 +338,31 @@ function AllProjects() {
             </div>
             <div className="modal-footer">
               <button className="btn-cancel" onClick={() => setShowModal(false)}>Cancel</button>
-             <button className="btn-create" onClick={handleCreate}>Create Project</button>
+            <button className="btn-create" onClick={handleCreate}>
+                {editingId ? "Save Changes" : "Create Project"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* View Project Modal */}
+      {viewProject && (
+        <div className="modal-overlay" onClick={() => setViewProject(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>{viewProject.projectName}</h2>
+              <button className="modal-close" onClick={() => setViewProject(null)}>✕</button>
+            </div>
+            <div className="modal-body">
+              <p><strong>Description:</strong> {viewProject.description}</p>
+              <p><strong>Supervisor:</strong> {viewProject.supervisor?.name || "Unassigned"}</p>
+              <p><strong>Priority:</strong> {viewProject.priority}</p>
+              <p><strong>Status:</strong> {viewProject.status}</p>
+              <p><strong>Start Date:</strong> {viewProject.startDate ? new Date(viewProject.startDate).toLocaleDateString() : "—"}</p>
+              <p><strong>Deadline:</strong> {viewProject.endDate ? new Date(viewProject.endDate).toLocaleDateString() : "—"}</p>
+            </div>
+            <div className="modal-footer">
+              <button className="btn-cancel" onClick={() => setViewProject(null)}>Close</button>
             </div>
           </div>
         </div>

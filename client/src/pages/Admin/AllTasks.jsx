@@ -1,73 +1,10 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Sidebar from "../../components/Sidebar";
 import Navbar from "../../components/Navbar";
 import "../../assets/styles.css";
+import api from "../../api/axios";
 
-// ---- Mock data (swap for API data once Express/Mongo is connected) ----
-const MOCK_TASKS = [
-  {
-    id: 1,
-    title: "Configure SIEM alert rules",
-    project: "SOC Playbook Automation",
-    assignee: "Ahmed Raza",
-    initials: "AR",
-    color: "#2563eb",
-    priority: "High",
-    progress: 80,
-    deadline: "14 Jul",
-    status: "In Progress",
-  },
-  {
-    id: 2,
-    title: "Draft phishing email templates",
-    project: "Phishing Simulation Suite",
-    assignee: "Zara Fatima",
-    initials: "ZF",
-    color: "#db2777",
-    priority: "Medium",
-    progress: 40,
-    deadline: "02 Jul",
-    status: "At Risk",
-  },
-  {
-    id: 3,
-    title: "Harden firewall rule set",
-    project: "Network Hardening Audit",
-    assignee: "Bilal Khan",
-    initials: "BK",
-    color: "#7c3aed",
-    priority: "High",
-    progress: 20,
-    deadline: "28 Jun",
-    status: "Overdue",
-  },
-  {
-    id: 4,
-    title: "Publish dashboard widgets v2",
-    project: "SIEM Dashboard Revamp",
-    assignee: "Ahmed Raza",
-    initials: "AR",
-    color: "#2563eb",
-    priority: "Low",
-    progress: 100,
-    deadline: "25 Jun",
-    status: "Completed",
-  },
-  {
-    id: 5,
-    title: "Write incident response runbook",
-    project: "SOC Playbook Automation",
-    assignee: "Sana Khan",
-    initials: "SK",
-    color: "#4f46e5",
-    priority: "Medium",
-    progress: 55,
-    deadline: "18 Jul",
-    status: "In Progress",
-  },
-];
-
-const STATUS_FILTERS = ["All", "In Progress", "At Risk", "Overdue", "Completed"];
+const STATUS_FILTERS = ["All", "Pending", "In Progress", "Overdue", "Completed"];
 
 function statusClass(status) {
   switch (status) {
@@ -75,7 +12,7 @@ function statusClass(status) {
       return "badge badge-completed";
     case "Overdue":
       return "badge badge-overdue";
-    case "At Risk":
+    case "Pending":
       return "badge badge-atrisk";
     default:
       return "badge badge-progress";
@@ -97,30 +34,81 @@ export default function AllTasks() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [showModal, setShowModal] = useState(false);
-  const [tasks, setTasks] = useState(MOCK_TASKS);
+  const [tasks, setTasks] = useState([]);
+  const [projects, setProjects] = useState([]);
+  const [assignees, setAssignees] = useState([]);
+
+  const fetchTasks = async () => {
+    try {
+      const res = await api.get("/tasks");
+      setTasks(res.data);
+    } catch (err) {
+      console.error("Failed to fetch tasks", err);
+    }
+  };
+
+  const fetchProjects = async () => {
+    try {
+      const res = await api.get("/projects");
+      setProjects(res.data);
+    } catch (err) {
+      console.error("Failed to fetch projects", err);
+    }
+  };
+
+  const fetchAssignees = async () => {
+    try {
+      const res = await api.get("/users");
+      setAssignees(res.data.filter((u) => u.role === "Supervisor"));
+    } catch (err) {
+      console.error("Failed to fetch users", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchTasks();
+    fetchProjects();
+    fetchAssignees();
+  }, []);
+
+  // Compute a display status: Overdue overrides In Progress/Pending if deadline has passed
+  const withDisplayStatus = (t) => {
+    const today = new Date();
+    if (t.status !== "Completed" && t.deadline && new Date(t.deadline) < today) {
+      return { ...t, displayStatus: "Overdue" };
+    }
+    return { ...t, displayStatus: t.status };
+  };
+
+  const enrichedTasks = useMemo(() => tasks.map(withDisplayStatus), [tasks]);
 
   const filteredTasks = useMemo(() => {
-    return tasks.filter((t) => {
+    return enrichedTasks.filter((t) => {
       const matchesSearch =
         t.title.toLowerCase().includes(search.toLowerCase()) ||
-        t.project.toLowerCase().includes(search.toLowerCase()) ||
-        t.assignee.toLowerCase().includes(search.toLowerCase());
-      const matchesStatus = statusFilter === "All" || t.status === statusFilter;
+        (t.project?.projectName || "").toLowerCase().includes(search.toLowerCase()) ||
+        (t.assignedTo?.name || "").toLowerCase().includes(search.toLowerCase());
+      const matchesStatus = statusFilter === "All" || t.displayStatus === statusFilter;
       return matchesSearch && matchesStatus;
     });
-  }, [tasks, search, statusFilter]);
+  }, [enrichedTasks, search, statusFilter]);
 
   const stats = useMemo(() => {
-    const total = tasks.length;
-    const inProgress = tasks.filter((t) => t.status === "In Progress").length;
-    const overdue = tasks.filter((t) => t.status === "Overdue").length;
-    const completed = tasks.filter((t) => t.status === "Completed").length;
+    const total = enrichedTasks.length;
+    const inProgress = enrichedTasks.filter((t) => t.displayStatus === "In Progress").length;
+    const overdue = enrichedTasks.filter((t) => t.displayStatus === "Overdue").length;
+    const completed = enrichedTasks.filter((t) => t.displayStatus === "Completed").length;
     return { total, inProgress, overdue, completed };
-  }, [tasks]);
+  }, [enrichedTasks]);
 
-  const handleAddTask = (newTask) => {
-    setTasks((prev) => [{ ...newTask, id: prev.length + 1 }, ...prev]);
-    setShowModal(false);
+  const handleAddTask = async (newTask) => {
+    try {
+      await api.post("/tasks", newTask);
+      setShowModal(false);
+      fetchTasks();
+    } catch (err) {
+      console.error("Failed to create task", err);
+    }
   };
 
   return (
@@ -134,7 +122,7 @@ export default function AllTasks() {
           <div className="tasks-header">
             <div>
               <h1>All Tasks</h1>
-              <p className="subtext">Every task across all divisions — Tuesday, 30 June</p>
+              <p className="subtext">Every task across all divisions</p>
             </div>
             <button className="btn-primary" onClick={() => setShowModal(true)}>
               + New Task
@@ -203,18 +191,15 @@ export default function AllTasks() {
               </thead>
               <tbody>
                 {filteredTasks.map((t) => (
-                  <tr key={t.id}>
+                  <tr key={t._id}>
                     <td className="task-title">{t.title}</td>
-                    <td className="task-project">{t.project}</td>
+                    <td className="task-project">{t.project?.projectName || "—"}</td>
                     <td>
                       <div className="assignee-cell">
-                        <span
-                          className="avatar"
-                          style={{ backgroundColor: t.color }}
-                        >
-                          {t.initials}
+                        <span className="avatar" style={{ backgroundColor: "#2563eb" }}>
+                          {t.assignedTo?.name?.[0]?.toUpperCase() || "?"}
                         </span>
-                        {t.assignee}
+                        {t.assignedTo?.name || "Unassigned"}
                       </div>
                     </td>
                     <td>
@@ -225,15 +210,19 @@ export default function AllTasks() {
                         <div className="progress-track">
                           <div
                             className="progress-fill"
-                            style={{ width: `${t.progress}%` }}
+                            style={{ width: `${t.progress || 0}%` }}
                           />
                         </div>
-                        <span className="progress-label">{t.progress}%</span>
+                        <span className="progress-label">
+                          {t.progress ? `${t.progress}%` : "—"}
+                        </span>
                       </div>
                     </td>
-                    <td className="task-deadline">{t.deadline}</td>
+                    <td className="task-deadline">
+                      {t.deadline ? new Date(t.deadline).toLocaleDateString() : "—"}
+                    </td>
                     <td>
-                      <span className={statusClass(t.status)}>{t.status}</span>
+                      <span className={statusClass(t.displayStatus)}>{t.displayStatus}</span>
                     </td>
                   </tr>
                 ))}
@@ -251,23 +240,25 @@ export default function AllTasks() {
       </div>
 
       {showModal && (
-        <NewTaskModal onClose={() => setShowModal(false)} onSave={handleAddTask} />
+        <NewTaskModal
+          projects={projects}
+          assignees={assignees}
+          onClose={() => setShowModal(false)}
+          onSave={handleAddTask}
+        />
       )}
     </div>
   );
 }
 
-function NewTaskModal({ onClose, onSave }) {
+function NewTaskModal({ projects, assignees, onClose, onSave }) {
   const [form, setForm] = useState({
     title: "",
+    description: "",
     project: "",
-    assignee: "",
-    initials: "",
-    color: "#2563eb",
+    assignedTo: "",
     priority: "Medium",
-    progress: 0,
     deadline: "",
-    status: "In Progress",
   });
 
   const handleChange = (field) => (e) =>
@@ -275,14 +266,8 @@ function NewTaskModal({ onClose, onSave }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!form.title || !form.project || !form.assignee) return;
-    const initials = form.assignee
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase();
-    onSave({ ...form, initials, progress: Number(form.progress) });
+    if (!form.title || !form.project || !form.assignedTo) return;
+    onSave(form);
   };
 
   return (
@@ -309,24 +294,26 @@ function NewTaskModal({ onClose, onSave }) {
 
           <label>
             Project
-            <input
-              type="text"
-              placeholder="e.g. SOC Playbook Automation"
-              value={form.project}
-              onChange={handleChange("project")}
-              required
-            />
+            <select value={form.project} onChange={handleChange("project")} required>
+              <option value="">Select project</option>
+              {projects.map((p) => (
+                <option key={p._id} value={p._id}>
+                  {p.projectName}
+                </option>
+              ))}
+            </select>
           </label>
 
           <label>
             Assignee
-            <input
-              type="text"
-              placeholder="e.g. Ahmed Raza"
-              value={form.assignee}
-              onChange={handleChange("assignee")}
-              required
-            />
+            <select value={form.assignedTo} onChange={handleChange("assignedTo")} required>
+              <option value="">Select assignee</option>
+              {assignees.map((a) => (
+                <option key={a._id} value={a._id}>
+                  {a.name} ({a.role})
+                </option>
+              ))}
+            </select>
           </label>
 
           <div className="modal-row">
@@ -342,8 +329,7 @@ function NewTaskModal({ onClose, onSave }) {
             <label>
               Deadline
               <input
-                type="text"
-                placeholder="e.g. 20 Jul"
+                type="date"
                 value={form.deadline}
                 onChange={handleChange("deadline")}
               />
