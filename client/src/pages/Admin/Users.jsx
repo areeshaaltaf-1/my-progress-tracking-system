@@ -3,6 +3,7 @@ import Sidebar from "../../components/Sidebar";
 import Navbar from "../../components/Navbar";
 import "../../assets/styles.css"; 
 
+
 function Users() {
   const [activeTab, setActiveTab] = useState("view");
   const [users, setUsers] = useState([]);
@@ -12,11 +13,16 @@ function Users() {
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("");
   const [department, setDepartment] = useState("");
+  const [editingUser, setEditingUser] = useState(null);
 
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:5000/api/users");
+      const res = await fetch("http://localhost:5000/api/users", {
+  headers: {
+    Authorization: `Bearer ${localStorage.getItem("token")}`,
+  },
+});
       const data = await res.json();
       setUsers(data);
     } catch (err) {
@@ -34,10 +40,13 @@ function Users() {
     const newUser = { name, email, password, role, department };
     try {
       const res = await fetch("http://localhost:5000/api/users/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newUser),
-      });
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${localStorage.getItem("token")}`,
+  },
+  body: JSON.stringify(newUser),
+});
       const data = await res.json();
       if (res.ok) {
         alert("User created successfully!");
@@ -55,13 +64,51 @@ function Users() {
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure?")) return;
     try {
-      await fetch(`http://localhost:5000/api/users/${id}`, { method: "DELETE" });
+      await fetch(`http://localhost:5000/api/users/${id}`, {
+  method: "DELETE",
+  headers: {
+    Authorization: `Bearer ${localStorage.getItem("token")}`,
+  },
+});
       fetchUsers();
     } catch (err) {
       console.log(err);
     }
   };
+const handleEditClick = (user) => {
+  setEditingUser(user);
+  setName(user.name);
+  setEmail(user.email);
+  setRole(user.role);
+  setDepartment(user.department);
+  setActiveTab("add");
+};
 
+const handleUpdate = async (e) => {
+  e.preventDefault();
+  try {
+    const res = await fetch(`http://localhost:5000/api/users/${editingUser._id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      },
+      body: JSON.stringify({ name, email, role, department }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      alert("User updated successfully!");
+      setName(""); setEmail(""); setPassword(""); setRole(""); setDepartment("");
+      setEditingUser(null);
+      fetchUsers();
+      setActiveTab("view");
+    } else {
+      alert(data.message);
+    }
+  } catch (err) {
+    alert("Something went wrong.");
+  }
+};
   const getInitials = (name) =>
     name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
 
@@ -169,7 +216,7 @@ function Users() {
                         <td className="u-dept">{u.department}</td>
                         <td>
                           <div className="action-btns">
-                            <button className="btn-edit">Edit</button>
+                            <button className="btn-edit" onClick={() => handleEditClick(u)}>Edit</button>
                             <button className="btn-delete" onClick={() => handleDelete(u._id)}>
                               Delete
                             </button>
@@ -187,8 +234,8 @@ function Users() {
         {/* ADD USER */}
         {activeTab === "add" && (
           <div className="add-user-wrapper">
-            <form className="add-user-form" onSubmit={handleSubmit}>
-              <h2 className="form-title">Add New User</h2>
+            <form className="add-user-form" onSubmit={editingUser ? handleUpdate : handleSubmit}>
+             <h2 className="form-title">{editingUser ? "Edit User" : "Add New User"}</h2>
 
               <div className="form-row">
                 <div className="form-group">
@@ -214,16 +261,18 @@ function Users() {
               </div>
 
               <div className="form-row">
-                <div className="form-group">
-                  <label>Password</label>
-                  <input
-                    type="password"
-                    placeholder="Min 6 characters"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                  />
-                </div>
+                {!editingUser && (
+  <div className="form-group">
+    <label>Password</label>
+    <input
+      type="password"
+      placeholder="Min 6 characters"
+      value={password}
+      onChange={(e) => setPassword(e.target.value)}
+      required
+    />
+  </div>
+)}
                 <div className="form-group">
                   <label>Role</label>
                   <select
@@ -251,12 +300,24 @@ function Users() {
               </div>
 
               <div className="form-actions">
-                <button type="button" className="btn-cancel" onClick={() => setActiveTab("view")}>
-                  Cancel
-                </button>
+                <button
+  type="button"
+  className="btn-cancel"
+  onClick={() => {
+    setEditingUser(null);
+    setName("");
+    setEmail("");
+    setPassword("");
+    setRole("");
+    setDepartment("");
+    setActiveTab("view");
+  }}
+>
+  Cancel
+</button>
                 <button type="submit" className="btn-create">
-                  Create User
-                </button>
+  {editingUser ? "Update User" : "Create User"}
+</button>
               </div>
             </form>
           </div>
