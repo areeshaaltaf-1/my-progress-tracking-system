@@ -37,8 +37,8 @@ export default function InternMyProjects() {
         ]);
 
         const myTasks = tasksRes.data.filter(
-          (t) => t.assignedTo?._id === currentUser?._id
-        );
+  (t) => t.assignedTo?._id === currentUser?.id
+);
 
         const projectMap = {};
         projectsRes.data.forEach((p) => {

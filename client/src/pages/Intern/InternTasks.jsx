@@ -45,7 +45,7 @@ export default function InternTasks() {
   const fetchTasks = async () => {
     try {
       const res = await api.get(projectId ? `/tasks?project=${projectId}` : "/tasks");
-      const mine = res.data.filter((t) => t.assignedTo?._id === currentUser?._id);
+      const mine = res.data.filter((t) => t.assignedTo?._id === currentUser?.id);
       setTasks(mine);
     } catch (err) {
       console.error("Failed to fetch tasks", err);
@@ -60,31 +60,34 @@ export default function InternTasks() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 
-  const handleStart = async (taskId) => {
-    setUpdatingId(taskId);
-    try {
-      await api.put(`/tasks/${taskId}`, { status: "In Progress", progress: 10 });
-      await fetchTasks();
-    } catch (err) {
-      console.error("Failed to start task", err);
-      alert(err.response?.data?.message || "Failed to update task");
-    } finally {
-      setUpdatingId(null);
-    }
-  };
+  const [progressInputs, setProgressInputs] = useState({});
 
-  const handleComplete = async (taskId) => {
-    setUpdatingId(taskId);
-    try {
-      await api.put(`/tasks/${taskId}`, { status: "Completed", progress: 100 });
-      await fetchTasks();
-    } catch (err) {
-      console.error("Failed to complete task", err);
-      alert(err.response?.data?.message || "Failed to update task");
-    } finally {
-      setUpdatingId(null);
-    }
-  };
+const handleProgressChange = (taskId, value) => {
+  setProgressInputs((prev) => ({ ...prev, [taskId]: value }));
+};
+
+const handleSaveProgress = async (task) => {
+  const raw = progressInputs[task._id];
+  const value = raw === undefined ? task.progress || 0 : Number(raw);
+
+  if (isNaN(value) || value < 0 || value > 100) {
+    alert("Progress must be a number between 0 and 100");
+    return;
+  }
+
+  const status = value === 0 ? "Pending" : value === 100 ? "Completed" : "In Progress";
+
+  setUpdatingId(task._id);
+  try {
+    await api.put(`/tasks/${task._id}`, { status, progress: value });
+    await fetchTasks();
+  } catch (err) {
+    console.error("Failed to update progress", err);
+    alert(err.response?.data?.message || "Failed to update task");
+  } finally {
+    setUpdatingId(null);
+  }
+};
 
   const filters = ["All", "This week", "Overdue"];
 
@@ -217,28 +220,33 @@ export default function InternTasks() {
                     </span>
                   </div>
 
-                  {task.status !== "Completed" && (
-                    <div style={{ display: "flex", gap: "8px", marginTop: "10px" }}>
-                      {task.status === "Pending" && (
-                        <button
-                          className="btn-secondary"
-                          style={{ flex: 1, padding: "6px 0", fontSize: "0.8rem" }}
-                          disabled={updatingId === task._id}
-                          onClick={() => handleStart(task._id)}
-                        >
-                          {updatingId === task._id ? "Starting..." : "Start Task"}
-                        </button>
-                      )}
-                      <button
-                        className="btn-primary"
-                        style={{ flex: 1, padding: "6px 0", fontSize: "0.8rem" }}
-                        disabled={updatingId === task._id}
-                        onClick={() => handleComplete(task._id)}
-                      >
-                        {updatingId === task._id ? "Saving..." : "Mark Complete"}
-                      </button>
-                    </div>
-                  )}
+                 {task.status !== "Completed" && (
+  <div style={{ display: "flex", gap: "8px", marginTop: "10px", alignItems: "center" }}>
+    <input
+      type="number"
+      min="0"
+      max="100"
+      placeholder="%"
+      value={progressInputs[task._id] ?? task.progress ?? 0}
+      onChange={(e) => handleProgressChange(task._id, e.target.value)}
+      style={{
+        width: "70px",
+        padding: "6px 8px",
+        borderRadius: "6px",
+        border: "1px solid #e2e8f0",
+        fontSize: "0.8rem",
+      }}
+    />
+    <button
+      className="btn-primary"
+      style={{ flex: 2, padding: "4px 0", fontSize: "0.8rem" }}
+      disabled={updatingId === task._id}
+      onClick={() => handleSaveProgress(task)}
+    >
+      {updatingId === task._id ? "Saving..." : "Save Progress"}
+    </button>
+  </div>
+)}
                 </div>
               );
             })}
