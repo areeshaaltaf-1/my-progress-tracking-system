@@ -16,12 +16,12 @@ import InternTasks from "./pages/Intern/InternTasks";
 import InternWorkLog from "./pages/Intern/InternWorkLog";
 import InternMyProjects from "./pages/Intern/InternMyProjects";
 import InternNotifications from "./pages/Intern/InternNotifications";
+import { ToastProvider } from "./context/ToastContext";
 
 // ✅ Protected Route component
 const ProtectedRoute = ({ children, allowedRoles }) => {
-  const role = localStorage.getItem("role");
-  const token = localStorage.getItem("token");
-
+ const role = sessionStorage.getItem("role");
+const token = sessionStorage.getItem("token");
   if (!token) return <Navigate to="/" />;
 
   if (!allowedRoles.map(r => r.toLowerCase()).includes(role?.toLowerCase())) {
@@ -33,6 +33,7 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 
 function App() {
   return (
+      <ToastProvider>
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Login />} />
@@ -132,6 +133,7 @@ function App() {
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </BrowserRouter>
+  </ToastProvider>
   );
 }
 

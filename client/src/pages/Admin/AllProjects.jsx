@@ -3,9 +3,16 @@ import Navbar from "../../components/Navbar";
 import "../../assets/styles.css";
 import { useState, useEffect } from "react";
 import api from "../../api/axios";
+import { useToast } from "../../context/ToastContext";
 
 
-
+function toTitleCase(str) {
+  if (!str) return str;
+  return str
+    .split(" ")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
 function AllProjects() {
   const [allProjects, setAllProjects] = useState([]);
   const [supervisors, setSupervisors] = useState([]);
@@ -14,6 +21,7 @@ function AllProjects() {
   const [showModal, setShowModal] = useState(false);
   const [viewProject, setViewProject] = useState(null);
   const [editingId, setEditingId] = useState(null);
+  const { showToast } = useToast();
   const [form, setForm] = useState({
     projectName: "",
     description: "",
@@ -62,38 +70,47 @@ function AllProjects() {
   const activeCount = allProjects.filter(
     (p) => p.status !== "Completed" && !(p.endDate && new Date(p.endDate) < today)
   ).length;
-  const handleCreate = async () => {
-    try {
-      if (editingId) {
-        await api.put(`/projects/${editingId}`, form);
-      } else {
-        await api.post("/projects/create", form);
-      }
-      setShowModal(false);
-      setEditingId(null);
-      setForm({
-        projectName: "",
-        description: "",
-        supervisor: "",
-        priority: "Medium",
-        startDate: "",
-        endDate: "",
-      });
-      fetchProjects();
-    } catch (err) {
-      console.error("Failed to save project", err);
+const handleCreate = async () => {
+  try {
+    if (editingId) {
+      await api.put(`/projects/${editingId}`, form);
+      showToast("Project updated successfully!", "success");
+    } else {
+      await api.post("/projects/create", form);
+      showToast("Project created successfully!", "success");
     }
-  };
+    setShowModal(false);
+    setEditingId(null);
+    setForm({
+      projectName: "",
+      description: "",
+      supervisor: "",
+      priority: "Medium",
+      startDate: "",
+      endDate: "",
+    });
+    fetchProjects();
+  } catch (err) {
+    console.error("Failed to save project", err);
+    showToast(
+      err.response?.data?.message ||
+        (editingId ? "Failed to update project" : "Failed to create project"),
+      "error"
+    );
+  }
+};
 
-  const handleDelete = async (id) => {
-    if (!confirm("Delete this project?")) return;
-    try {
-      await api.delete(`/projects/${id}`);
-      fetchProjects();
-    } catch (err) {
-      console.error("Failed to delete project", err);
-    }
-  };
+ const handleDelete = async (id) => {
+  if (!confirm("Delete this project?")) return;
+  try {
+    await api.delete(`/projects/${id}`);
+    showToast("Project deleted successfully!", "success");
+    fetchProjects();
+  } catch (err) {
+    console.error("Failed to delete project", err);
+    showToast(err.response?.data?.message || "Failed to delete project", "error");
+  }
+};
 
   return (
     <div className="dashboard">
@@ -350,11 +367,11 @@ function AllProjects() {
         <div className="modal-overlay" onClick={() => setViewProject(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>{viewProject.projectName}</h2>
-              <button className="modal-close" onClick={() => setViewProject(null)}>✕</button>
-            </div>
-            <div className="modal-body">
-              <p><strong>Description:</strong> {viewProject.description}</p>
+  <h2>{toTitleCase(viewProject.projectName)}</h2>
+  <button className="modal-close" onClick={() => setViewProject(null)}>✕</button>
+</div>
+<div className="modal-body">
+  <p><strong>Description:</strong> {toTitleCase(viewProject.description)}</p>
               <p><strong>Supervisor:</strong> {viewProject.supervisor?.name || "Unassigned"}</p>
               <p><strong>Priority:</strong> {viewProject.priority}</p>
               <p><strong>Status:</strong> {viewProject.status}</p>

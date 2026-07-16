@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import Sidebar from "../../components/Sidebar";
 import Navbar from "../../components/Navbar";
 import "../../assets/styles.css"; 
+import { useToast } from "../../context/ToastContext";
 
 
 function Users() {
@@ -14,13 +15,14 @@ function Users() {
   const [role, setRole] = useState("");
   const [department, setDepartment] = useState("");
   const [editingUser, setEditingUser] = useState(null);
+  const { showToast } = useToast();
 
   const fetchUsers = async () => {
     setLoading(true);
     try {
       const res = await fetch("http://localhost:5000/api/users", {
   headers: {
-    Authorization: `Bearer ${localStorage.getItem("token")}`,
+    Authorization: `Bearer ${sessionStorage.getItem("token")}`,
   },
 });
       const data = await res.json();
@@ -43,38 +45,45 @@ function Users() {
   method: "POST",
   headers: {
     "Content-Type": "application/json",
-    Authorization: `Bearer ${localStorage.getItem("token")}`,
+    Authorization: `Bearer ${sessionStorage.getItem("token")}`,
   },
   body: JSON.stringify(newUser),
 });
       const data = await res.json();
-      if (res.ok) {
-        alert("User created successfully!");
-        setName(""); setEmail(""); setPassword(""); setRole(""); setDepartment("");
-        fetchUsers();
-        setActiveTab("view");
-      } else {
-        alert(data.message);
-      }
+       if (res.ok) {
+  showToast("New user added successfully!", "success");
+  setName(""); setEmail(""); setPassword(""); setRole(""); setDepartment("");
+  fetchUsers();
+  setActiveTab("view");
+} else {
+  showToast(data.message || "Failed to create user", "error");
+}
     } catch (err) {
-      alert("Something went wrong.");
-    }
+  showToast("Something went wrong.", "error");
+}
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure?")) return;
-    try {
-      await fetch(`http://localhost:5000/api/users/${id}`, {
-  method: "DELETE",
-  headers: {
-    Authorization: `Bearer ${localStorage.getItem("token")}`,
-  },
-});
+ const handleDelete = async (id) => {
+  if (!window.confirm("Are you sure?")) return;
+  try {
+    const res = await fetch(`http://localhost:5000/api/users/${id}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${sessionStorage.getItem("token")}`,
+      },
+    });
+    if (res.ok) {
+      showToast("User deleted successfully!", "success");
       fetchUsers();
-    } catch (err) {
-      console.log(err);
+    } else {
+      const data = await res.json();
+      showToast(data.message || "Failed to delete user", "error");
     }
-  };
+  } catch (err) {
+    console.log(err);
+    showToast("Something went wrong.", "error");
+  }
+};
 const handleEditClick = (user) => {
   setEditingUser(user);
   setName(user.name);
@@ -91,22 +100,22 @@ const handleUpdate = async (e) => {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
+        Authorization: `Bearer ${sessionStorage.getItem("token")}`,
       },
       body: JSON.stringify({ name, email, role, department }),
     });
     const data = await res.json();
     if (res.ok) {
-      alert("User updated successfully!");
+      showToast("User updated successfully!", "success");
       setName(""); setEmail(""); setPassword(""); setRole(""); setDepartment("");
       setEditingUser(null);
       fetchUsers();
       setActiveTab("view");
     } else {
-      alert(data.message);
+      showToast(data.message || "Failed to update user", "error");
     }
   } catch (err) {
-    alert("Something went wrong.");
+    showToast("Something went wrong.", "error");
   }
 };
   const getInitials = (name) =>
@@ -289,15 +298,19 @@ const handleUpdate = async (e) => {
               </div>
 
               <div className="form-group">
-                <label>Department</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Cyber Security"
-                  value={department}
-                  onChange={(e) => setDepartment(e.target.value)}
-                  required
-                />
-              </div>
+  <label>Department</label>
+  <select
+    value={department}
+    onChange={(e) => setDepartment(e.target.value)}
+    required
+  >
+    <option value="">Select Department</option>
+    <option value="Cyber Security">Cyber Security</option>
+    <option value="Software Engineering">Software Engineering</option>
+    <option value="Artificial Intelligence">Artificial Intelligence</option>
+    <option value="Computer Science">Computer Science</option>
+  </select>
+</div>
 
               <div className="form-actions">
                 <button

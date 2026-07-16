@@ -3,7 +3,7 @@ import { useState } from "react";
 
 function Navbar() {
   const [showTooltip, setShowTooltip] = useState(false);
-  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const user = JSON.parse(sessionStorage.getItem("user") || "{}");
   const initials = user.name
     ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
     : "A";

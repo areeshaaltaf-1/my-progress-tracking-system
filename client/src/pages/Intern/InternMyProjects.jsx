@@ -1,27 +1,103 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import InternSidebar from "../../components/InternSidebar";
-import { internProjectsData } from "../../data/InternProjectsData";
+import api from "../../api/axios";
 import "../../assets/styles.css";
 
 const STATUS_COLORS = {
   "In Progress": { bg: "#eff6ff", text: "#2563eb", dot: "#3b82f6" },
-  Planning: { bg: "#f5f3ff", text: "#7c3aed", dot: "#7c3aed" },
+  Pending: { bg: "#f5f3ff", text: "#7c3aed", dot: "#7c3aed" },
   Completed: { bg: "#f0fdf4", text: "#16a34a", dot: "#22c55e" },
 };
+
+function getCurrentUser() {
+  try {
+    return JSON.parse(sessionStorage.getItem("user"));
+  } catch {
+    return null;
+  }
+}
 
 export default function InternMyProjects() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("All");
+  const [projects, setProjects] = useState([]);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const currentUser = getCurrentUser();
 
-  const filters = ["All", "In Progress", "Planning", "Completed"];
+  const filters = ["All", "In Progress", "Pending", "Completed"];
 
-  const filtered = internProjectsData.filter((p) => {
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [tasksRes, projectsRes] = await Promise.all([
+          api.get("/tasks"),
+          api.get("/projects"),
+        ]);
+
+        const myTasks = tasksRes.data.filter(
+          (t) => t.assignedTo?._id === currentUser?._id
+        );
+
+        const projectMap = {};
+        projectsRes.data.forEach((p) => {
+          projectMap[p._id] = p;
+        });
+
+        const grouped = {};
+        myTasks.forEach((t) => {
+          const pid = t.project?._id;
+          if (!pid) return;
+          if (!grouped[pid]) grouped[pid] = [];
+          grouped[pid].push(t);
+        });
+
+        const built = Object.keys(grouped).map((pid) => {
+          const proj = projectMap[pid];
+          const myProjectTasks = grouped[pid];
+          const avgProgress = Math.round(
+            myProjectTasks.reduce((a, t) => a + (t.progress || 0), 0) /
+              myProjectTasks.length
+          );
+          return {
+            id: pid,
+            name: proj?.projectName || "Unknown project",
+            description: proj?.description || "",
+            status: proj?.status || "Pending",
+            deadline: proj?.endDate ? new Date(proj.endDate).toLocaleDateString() : "No deadline",
+            supervisor: proj?.supervisor?.name || "Unassigned",
+            tasks: myProjectTasks,
+            progress: avgProgress,
+          };
+        });
+
+        setProjects(built);
+      } catch (err) {
+        console.error("Failed to load my projects", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
+
+  const filtered = projects.filter((p) => {
     const matchStatus = filter === "All" || p.status === filter;
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase());
     return matchStatus && matchSearch;
   });
+
+  if (loading) {
+    return (
+      <div className="smp-layout">
+        <InternSidebar />
+        <main className="smp-main">
+          <p>Loading projects...</p>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="smp-layout">
@@ -59,8 +135,8 @@ export default function InternMyProjects() {
                 {f}
                 <span className="smp-filter-count">
                   {f === "All"
-                    ? internProjectsData.length
-                    : internProjectsData.filter((p) => p.status === f).length}
+                    ? projects.length
+                    : projects.filter((p) => p.status === f).length}
                 </span>
               </button>
             ))}
@@ -69,22 +145,23 @@ export default function InternMyProjects() {
 
         <div className="smp-stats">
           {[
-            { label: "Assigned Projects", value: internProjectsData.length },
+            { label: "Assigned Projects", value: projects.length },
             {
               label: "In Progress",
-              value: internProjectsData.filter((p) => p.status === "In Progress").length,
+              value: projects.filter((p) => p.status === "In Progress").length,
             },
             {
               label: "My Tasks Total",
-              value: internProjectsData.reduce((a, p) => a + p.tasks.length, 0),
+              value: projects.reduce((a, p) => a + p.tasks.length, 0),
             },
             {
               label: "Avg Progress",
               value:
-                Math.round(
-                  internProjectsData.reduce((a, p) => a + p.progress, 0) /
-                    internProjectsData.length
-                ) + "%",
+                projects.length === 0
+                  ? "0%"
+                  : Math.round(
+                      projects.reduce((a, p) => a + p.progress, 0) / projects.length
+                    ) + "%",
             },
           ].map((s) => (
             <div className="smp-stat-card" key={s.label}>
@@ -99,7 +176,7 @@ export default function InternMyProjects() {
         ) : (
           <div className="smp-grid">
             {filtered.map((project) => {
-              const sta = STATUS_COLORS[project.status];
+              const sta = STATUS_COLORS[project.status] || STATUS_COLORS.Pending;
               const progressColor =
                 project.progress === 100
                   ? "#22c55e"

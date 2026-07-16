@@ -68,5 +68,15 @@ router.delete("/:id", authMiddleware, roleMiddleware(["Admin"]), async (req, res
     res.status(500).json(err);
   }
 });
+// Get single project (any logged-in user)
+router.get("/:id", authMiddleware, async (req, res) => {
+  try {
+    const project = await Project.findById(req.params.id).populate("supervisor", "name department");
+    if (!project) return res.status(404).json({ message: "Project not found" });
+    res.status(200).json(project);
+  } catch (err) {
+    res.status(500).json(err);
+  }
+});
 
 module.exports = router;

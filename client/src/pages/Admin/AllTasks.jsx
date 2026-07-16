@@ -33,10 +33,7 @@ function priorityClass(priority) {
 export default function AllTasks() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
-  const [showModal, setShowModal] = useState(false);
   const [tasks, setTasks] = useState([]);
-  const [projects, setProjects] = useState([]);
-  const [assignees, setAssignees] = useState([]);
 
   const fetchTasks = async () => {
     try {
@@ -47,28 +44,8 @@ export default function AllTasks() {
     }
   };
 
-  const fetchProjects = async () => {
-    try {
-      const res = await api.get("/projects");
-      setProjects(res.data);
-    } catch (err) {
-      console.error("Failed to fetch projects", err);
-    }
-  };
-
-  const fetchAssignees = async () => {
-    try {
-      const res = await api.get("/users");
-      setAssignees(res.data.filter((u) => u.role === "Supervisor"));
-    } catch (err) {
-      console.error("Failed to fetch users", err);
-    }
-  };
-
   useEffect(() => {
     fetchTasks();
-    fetchProjects();
-    fetchAssignees();
   }, []);
 
   // Compute a display status: Overdue overrides In Progress/Pending if deadline has passed
@@ -101,16 +78,6 @@ export default function AllTasks() {
     return { total, inProgress, overdue, completed };
   }, [enrichedTasks]);
 
-  const handleAddTask = async (newTask) => {
-    try {
-      await api.post("/tasks", newTask);
-      setShowModal(false);
-      fetchTasks();
-    } catch (err) {
-      console.error("Failed to create task", err);
-    }
-  };
-
   return (
     <div className="dashboard-layout">
       <Sidebar />
@@ -122,11 +89,10 @@ export default function AllTasks() {
           <div className="tasks-header">
             <div>
               <h1>All Tasks</h1>
-              <p className="subtext">Every task across all divisions</p>
+              <p className="subtext">
+                Every task across all divisions — created and assigned by supervisors
+              </p>
             </div>
-            <button className="btn-primary" onClick={() => setShowModal(true)}>
-              + New Task
-            </button>
           </div>
 
           {/* Stat cards */}
@@ -237,114 +203,6 @@ export default function AllTasks() {
             </table>
           </div>
         </div>
-      </div>
-
-      {showModal && (
-        <NewTaskModal
-          projects={projects}
-          assignees={assignees}
-          onClose={() => setShowModal(false)}
-          onSave={handleAddTask}
-        />
-      )}
-    </div>
-  );
-}
-
-function NewTaskModal({ projects, assignees, onClose, onSave }) {
-  const [form, setForm] = useState({
-    title: "",
-    description: "",
-    project: "",
-    assignedTo: "",
-    priority: "Medium",
-    deadline: "",
-  });
-
-  const handleChange = (field) => (e) =>
-    setForm((prev) => ({ ...prev, [field]: e.target.value }));
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!form.title || !form.project || !form.assignedTo) return;
-    onSave(form);
-  };
-
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h3>Create New Task</h3>
-          <button className="modal-close" onClick={onClose}>
-            &times;
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="modal-form">
-          <label>
-            Task title
-            <input
-              type="text"
-              placeholder="e.g. Configure SIEM alert rules"
-              value={form.title}
-              onChange={handleChange("title")}
-              required
-            />
-          </label>
-
-          <label>
-            Project
-            <select value={form.project} onChange={handleChange("project")} required>
-              <option value="">Select project</option>
-              {projects.map((p) => (
-                <option key={p._id} value={p._id}>
-                  {p.projectName}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label>
-            Assignee
-            <select value={form.assignedTo} onChange={handleChange("assignedTo")} required>
-              <option value="">Select assignee</option>
-              {assignees.map((a) => (
-                <option key={a._id} value={a._id}>
-                  {a.name} ({a.role})
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <div className="modal-row">
-            <label>
-              Priority
-              <select value={form.priority} onChange={handleChange("priority")}>
-                <option>Low</option>
-                <option>Medium</option>
-                <option>High</option>
-              </select>
-            </label>
-
-            <label>
-              Deadline
-              <input
-                type="date"
-                value={form.deadline}
-                onChange={handleChange("deadline")}
-              />
-            </label>
-          </div>
-
-          <div className="modal-actions">
-            <button type="button" className="btn-secondary" onClick={onClose}>
-              Cancel
-            </button>
-            <button type="submit" className="btn-primary">
-              Create Task
-            </button>
-          </div>
-        </form>
       </div>
     </div>
   );

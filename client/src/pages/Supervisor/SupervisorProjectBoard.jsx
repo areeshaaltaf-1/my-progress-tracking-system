@@ -1,12 +1,18 @@
 import { useState, useMemo, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import SupervisorSidebar from "../../components/SupervisorSidebar";
-import { projectsData, COLUMNS } from "../../data/ProjectsData";
+import api from "../../api/axios";
 import "../../assets/styles.css";
+
+const COLUMNS = [
+  { key: "Pending", label: "Pending", accent: "#f59e0b" },
+  { key: "In Progress", label: "In Progress", accent: "#3b82f6" },
+  { key: "Completed", label: "Completed", accent: "#10b981" },
+];
 
 function statusClass(status) {
   if (status === "Completed") return "task-status status-completed";
-  if (status === "Awaiting review") return "task-status status-review";
+  if (status === "In Progress") return "task-status status-review";
   return "task-status status-notstarted";
 }
 
@@ -14,25 +20,111 @@ export default function SupervisorProjectBoard() {
   const { projectId } = useParams();
   const navigate = useNavigate();
 
-  const project = projectsData.find((p) => p.id === Number(projectId));
-
-  const [tasks, setTasks] = useState(project ? project.tasks : []);
+  const [project, setProject] = useState(null);
+  const [tasks, setTasks] = useState([]);
+  const [interns, setInterns] = useState([]);
   const [showModal, setShowModal] = useState(false);
+  const [editingTask, setEditingTask] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+
+  const fetchProject = async () => {
+    try {
+      const res = await api.get(`/projects/${projectId}`);
+      setProject(res.data);
+    } catch (err) {
+      console.error("Failed to fetch project", err);
+      setNotFound(true);
+    }
+  };
+
+  const fetchTasks = async () => {
+    try {
+      const res = await api.get(`/tasks?project=${projectId}`);
+      setTasks(res.data);
+    } catch (err) {
+      console.error("Failed to fetch tasks", err);
+    }
+  };
+
+  const fetchInterns = async () => {
+    try {
+      const res = await api.get("/users");
+      setInterns(res.data.filter((u) => u.role?.toLowerCase() === "internee"));
+    } catch (err) {
+      console.error("Failed to fetch users", err);
+    }
+  };
 
   useEffect(() => {
-    setTasks(project ? project.tasks : []);
+    setLoading(true);
+    setNotFound(false);
+    Promise.all([fetchProject(), fetchTasks(), fetchInterns()]).finally(() =>
+      setLoading(false)
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 
-  if (!project) {
+  const grouped = useMemo(() => {
+    const map = {};
+    COLUMNS.forEach((c) => (map[c.key] = []));
+    tasks.forEach((t) => map[t.status]?.push(t));
+    return map;
+  }, [tasks]);
+
+  const handleAssign = async (newTask) => {
+    try {
+      await api.post("/tasks", { ...newTask, project: projectId });
+      setShowModal(false);
+      fetchTasks();
+    } catch (err) {
+      console.error("Failed to create task", err);
+      alert(err.response?.data?.message || "Failed to create task");
+    }
+  };
+
+  const handleEditClick = (task) => setEditingTask(task);
+
+  const handleEditSave = async (updatedFields) => {
+    try {
+      await api.put(`/tasks/${editingTask._id}`, updatedFields);
+      setEditingTask(null);
+      fetchTasks();
+    } catch (err) {
+      console.error("Failed to update task", err);
+      alert(err.response?.data?.message || "Failed to update task");
+    }
+  };
+
+  const handleDeleteClick = async (taskId) => {
+    if (!window.confirm("Delete this task? This can't be undone.")) return;
+    try {
+      await api.delete(`/tasks/${taskId}`);
+      fetchTasks();
+    } catch (err) {
+      console.error("Failed to delete task", err);
+      alert(err.response?.data?.message || "Failed to delete task");
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="supervisor-layout">
+        <SupervisorSidebar />
+        <div className="sv-main-content">
+          <p>Loading project...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (notFound || !project) {
     return (
       <div className="supervisor-layout">
         <SupervisorSidebar />
         <div className="sv-main-content">
           <p>Project not found.</p>
-          <button
-            className="btn-primary"
-            onClick={() => navigate("/supervisor/dashboard")}
-          >
+          <button className="btn-primary" onClick={() => navigate("/supervisor/dashboard")}>
             Back to Dashboard
           </button>
         </div>
@@ -40,31 +132,29 @@ export default function SupervisorProjectBoard() {
     );
   }
 
-  const grouped = useMemo(() => {
-    const map = {};
-    COLUMNS.forEach((c) => (map[c.key] = []));
-    tasks.forEach((t) => map[t.column]?.push(t));
-    return map;
-  }, [tasks]);
-
-  const handleAssign = (newTask) => {
-    setTasks((prev) => [...prev, { ...newTask, id: prev.length + 1 }]);
-    setShowModal(false);
-  };
+  const progress =
+    tasks.length === 0
+      ? 0
+      : Math.round(
+          (tasks.filter((t) => t.status === "Completed").length / tasks.length) * 100
+        );
 
   return (
     <div className="supervisor-layout">
       <SupervisorSidebar />
 
       <div className="sv-main-content">
-        <div className="sv-breadcrumb">PROJECTS / {project.name}</div>
+        <div className="sv-breadcrumb">PROJECTS / {project.projectName}</div>
 
         <div className="project-header-card">
           <div className="project-header-top">
             <div>
-              <h1>{project.name}</h1>
+              <h1>{project.projectName}</h1>
               <p className="project-desc">
-                {project.description} · Deadline {project.deadline}
+                {project.description}
+                {project.endDate
+                  ? ` · Deadline ${new Date(project.endDate).toLocaleDateString()}`
+                  : ""}
               </p>
             </div>
             <div className="project-progress-block">
@@ -75,7 +165,7 @@ export default function SupervisorProjectBoard() {
               >
                 + Assign Task
               </button>
-              <span className="project-progress-value">{project.progress}%</span>
+              <span className="project-progress-value">{progress}%</span>
               <span className="project-progress-label">overall progress</span>
             </div>
           </div>
@@ -83,19 +173,8 @@ export default function SupervisorProjectBoard() {
           <div className="project-meta-row">
             <div className="meta-tags">
               <span className="meta-tag">{tasks.length} tasks</span>
-              <span className="meta-tag">{project.contributors} contributors</span>
               <span className="meta-tag">Priority: {project.priority}</span>
-            </div>
-            <div className="avatar-stack">
-              {project.team.map((m, i) => (
-                <span
-                  key={i}
-                  className="stack-avatar"
-                  style={{ backgroundColor: m.color }}
-                >
-                  {m.initials}
-                </span>
-              ))}
+              <span className="meta-tag">Status: {project.status}</span>
             </div>
           </div>
         </div>
@@ -112,47 +191,61 @@ export default function SupervisorProjectBoard() {
 
               <div className="column-cards">
                 {grouped[col.key].map((t) => (
-                  <div className="task-card" key={t.id}>
+                  <div className="task-card" key={t._id}>
                     <p className="task-title">{t.title}</p>
 
-                    {typeof t.progress === "number" && (
-                      <div className="task-progress-track">
-                        <div
-                          className="task-progress-fill"
-                          style={{
-                            width: `${t.progress}%`,
-                            backgroundColor: t.progress >= 50 ? "#10b981" : "#f59e0b",
-                          }}
-                        />
-                      </div>
-                    )}
+                    <div className="task-progress-track">
+                      <div
+                        className="task-progress-fill"
+                        style={{
+                          width: `${t.progress || 0}%`,
+                          backgroundColor: (t.progress || 0) >= 50 ? "#10b981" : "#f59e0b",
+                        }}
+                      />
+                    </div>
 
                     <div className="task-card-footer">
                       <div className="task-card-left">
-                        {t.status && (
-                          <span className={statusClass(t.status)}>
-                            <span className="status-dot" />
-                            {t.status}
-                          </span>
-                        )}
-                        {typeof t.progress === "number" && (
-                          <span className="task-progress-text">
-                            {t.progress}%{t.due ? ` · due ${t.due}` : ""}
-                          </span>
-                        )}
-                        {!t.status && typeof t.progress !== "number" && t.due && (
-                          <span className="task-due">due {t.due}</span>
-                        )}
+                        <span className={statusClass(t.status)}>
+                          <span className="status-dot" />
+                          {t.status}
+                        </span>
+                        <span className="task-progress-text">
+                          {t.progress || 0}%
+                          {t.deadline ? ` · due ${new Date(t.deadline).toLocaleDateString()}` : ""}
+                        </span>
                       </div>
-                      <span
-                        className="card-avatar"
-                        style={{ backgroundColor: t.assignee.color }}
-                      >
-                        {t.assignee.initials}
+                      <span className="card-avatar" style={{ backgroundColor: "#2563eb" }}>
+                        {t.assignedTo?.name?.[0]?.toUpperCase() || "?"}
                       </span>
+                    </div>
+
+                    <div
+                      className="task-card-actions"
+                      style={{ display: "flex", gap: "8px", marginTop: "8px" }}
+                    >
+                      <button
+                        className="btn-secondary"
+                        style={{ flex: 1, padding: "6px 0", fontSize: "0.8rem" }}
+                        onClick={() => handleEditClick(t)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="btn-danger"
+                        style={{ flex: 1, padding: "6px 0", fontSize: "0.8rem" }}
+                        onClick={() => handleDeleteClick(t._id)}
+                      >
+                        Delete
+                      </button>
                     </div>
                   </div>
                 ))}
+                {grouped[col.key].length === 0 && (
+                  <p className="empty-row" style={{ fontSize: "0.85rem" }}>
+                    No tasks here.
+                  </p>
+                )}
               </div>
             </div>
           ))}
@@ -160,47 +253,59 @@ export default function SupervisorProjectBoard() {
       </div>
 
       {showModal && (
-        <AssignTaskModal onClose={() => setShowModal(false)} onSave={handleAssign} />
+        <AssignTaskModal
+          interns={interns}
+          onClose={() => setShowModal(false)}
+          onSave={handleAssign}
+        />
+      )}
+
+      {editingTask && (
+        <AssignTaskModal
+          interns={interns}
+          initialValues={{
+            title: editingTask.title,
+            description: editingTask.description || "",
+            assignedTo: editingTask.assignedTo?._id || "",
+            priority: editingTask.priority,
+            deadline: editingTask.deadline ? editingTask.deadline.slice(0, 10) : "",
+          }}
+          onClose={() => setEditingTask(null)}
+          onSave={handleEditSave}
+        />
       )}
     </div>
   );
 }
 
-function AssignTaskModal({ onClose, onSave }) {
-  const [form, setForm] = useState({
-    title: "",
-    column: "To Do",
-    assigneeName: "",
-    due: "",
-  });
+function AssignTaskModal({ interns, onClose, onSave, initialValues }) {
+  const [form, setForm] = useState(
+    initialValues || {
+      title: "",
+      description: "",
+      assignedTo: "",
+      priority: "Medium",
+      deadline: "",
+    }
+  );
 
   const handleChange = (field) => (e) =>
     setForm((prev) => ({ ...prev, [field]: e.target.value }));
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!form.title || !form.assigneeName) return;
-    const initials = form.assigneeName
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase();
-    onSave({
-      title: form.title,
-      column: form.column,
-      due: form.due || undefined,
-      status: form.column === "To Do" ? "Not started" : undefined,
-      assignee: { initials, color: "#2563eb" },
-    });
+    if (!form.title || !form.assignedTo) return;
+    onSave(form);
   };
 
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-card" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h3>Assign Task</h3>
-          <button className="modal-close" onClick={onClose}>&times;</button>
+          <h3>{initialValues ? "Edit Task" : "Assign Task"}</h3>
+          <button className="modal-close" onClick={onClose}>
+            &times;
+          </button>
         </div>
 
         <form onSubmit={handleSubmit} className="modal-form">
@@ -216,35 +321,46 @@ function AssignTaskModal({ onClose, onSave }) {
           </label>
 
           <label>
-            Assign to
+            Description
             <input
               type="text"
-              placeholder="e.g. Hina Malik"
-              value={form.assigneeName}
-              onChange={handleChange("assigneeName")}
-              required
+              placeholder="Optional details"
+              value={form.description}
+              onChange={handleChange("description")}
             />
           </label>
 
+          <label>
+            Assign to intern
+            <select value={form.assignedTo} onChange={handleChange("assignedTo")} required>
+              <option value="">Select intern</option>
+              {interns.map((i) => (
+                <option key={i._id} value={i._id}>
+                  {i.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {interns.length === 0 && (
+            <p style={{ fontSize: "0.8rem", color: "#dc2626" }}>
+              No interns found. Ask admin to add intern accounts first.
+            </p>
+          )}
+
           <div className="modal-row">
             <label>
-              Column
-              <select value={form.column} onChange={handleChange("column")}>
-                <option>To Do</option>
-                <option>In Progress</option>
-                <option>Review</option>
-                <option>Done</option>
+              Priority
+              <select value={form.priority} onChange={handleChange("priority")}>
+                <option>Low</option>
+                <option>Medium</option>
+                <option>High</option>
               </select>
             </label>
 
             <label>
-              Due date
-              <input
-                type="text"
-                placeholder="e.g. 20 Jul"
-                value={form.due}
-                onChange={handleChange("due")}
-              />
+              Deadline
+              <input type="date" value={form.deadline} onChange={handleChange("deadline")} />
             </label>
           </div>
 
@@ -253,7 +369,7 @@ function AssignTaskModal({ onClose, onSave }) {
               Cancel
             </button>
             <button type="submit" className="btn-primary">
-              Assign Task
+              {initialValues ? "Save Changes" : "Assign Task"}
             </button>
           </div>
         </form>

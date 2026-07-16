@@ -32,7 +32,7 @@ router.post("/create", authMiddleware, roleMiddleware(["Admin"]), async (req, re
     res.status(500).json(err);
   }
 });
-router.get("/", authMiddleware, roleMiddleware(["Admin"]), async (req, res) => {
+router.get("/", authMiddleware, roleMiddleware(["Admin", "Supervisor"]), async (req, res) => {
   try {
     const users = await User.find().select("-password");
     res.status(200).json(users);

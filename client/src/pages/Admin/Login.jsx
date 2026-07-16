@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import { useToast } from "../../context/ToastContext";
 
 function Login() {
   const [email, setEmail] = useState("");
@@ -11,6 +12,7 @@ function Login() {
   const [mounted, setMounted] = useState(false);
 
   const navigate = useNavigate();
+  const { showToast } = useToast();
 
   useEffect(() => {
     setTimeout(() => setMounted(true), 60);
@@ -29,17 +31,19 @@ function Login() {
         email: trimmedEmail, password,
       });
       const { token, user } = response.data;
-      localStorage.setItem("token", token);
-      localStorage.setItem("role", user.role);
-      localStorage.setItem("user", JSON.stringify(user));
-      setError("");
-      if (user.role.toLowerCase() === "admin") navigate("/admin/dashboard");
+      sessionStorage.setItem("token", token);
+sessionStorage.setItem("role", user.role);
+sessionStorage.setItem("user", JSON.stringify(user));
+setError("");
+showToast(`Login successful! Welcome, ${user.name}.`, "success");
+if (user.role.toLowerCase() === "admin") navigate("/admin/dashboard");
       else if (user.role.toLowerCase() === "supervisor") navigate("/supervisor/dashboard");
       else if (user.role.toLowerCase() === "internee") navigate("/intern/tasks");
       else navigate("/");
-    } catch (err) {
-      setError(err.response?.data?.message || "Login failed");
-    } finally {
+   } catch (err) {
+  setError(err.response?.data?.message || "Login failed");
+  showToast("Login failed", "error");
+} finally {
       setIsLoading(false);
     }
   };
