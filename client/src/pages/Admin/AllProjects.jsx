@@ -16,6 +16,7 @@ function toTitleCase(str) {
 function AllProjects() {
   const [allProjects, setAllProjects] = useState([]);
   const [supervisors, setSupervisors] = useState([]);
+  const [tasks, setTasks] = useState([]);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("All");
   const [showModal, setShowModal] = useState(false);
@@ -49,9 +50,19 @@ function AllProjects() {
     }
   };
 
+  const fetchTasks = async () => {
+    try {
+      const res = await api.get("/tasks");
+      setTasks(res.data);
+    } catch (err) {
+      console.error("Failed to fetch tasks", err);
+    }
+  };
+
   useEffect(() => {
     fetchProjects();
     fetchSupervisors();
+    fetchTasks();
   }, []);
 
   // Filter logic
@@ -70,6 +81,14 @@ function AllProjects() {
   const activeCount = allProjects.filter(
     (p) => p.status !== "Completed" && !(p.endDate && new Date(p.endDate) < today)
   ).length;
+
+  const projectProgress = (projectId) => {
+    const pTasks = tasks.filter((t) => t.project?._id === projectId);
+    if (pTasks.length === 0) return 0;
+    const completed = pTasks.filter((t) => t.status === "Completed").length;
+    return Math.round((completed / pTasks.length) * 100);
+  };
+
 const handleCreate = async () => {
   try {
     if (editingId) {
@@ -193,7 +212,6 @@ const handleCreate = async () => {
                 <th>PROJECT</th>
                 <th>SUPERVISOR</th>
                 <th>PROGRESS</th>
-                <th>TASKS</th>
                 <th>DEADLINE</th>
                 <th>STATUS</th>
                 <th>ACTIONS</th>
@@ -202,7 +220,7 @@ const handleCreate = async () => {
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="no-results">
+                  <td colSpan="6" className="no-results">
                     No projects found
                   </td>
                 </tr>
@@ -227,13 +245,11 @@ const handleCreate = async () => {
                       <div className="table-progress-bar">
                         <div
                           className="table-progress-fill"
-                          style={{ width: "0%" }}
+                          style={{ width: `${projectProgress(p._id)}%` }}
                         ></div>
                       </div>
-                      <span className="progress-pct">—</span>
+                      <span className="progress-pct">{projectProgress(p._id)}%</span>
                     </td>
-                    <td className="tasks-cell">—</td>
-                      
                     <td className="deadline-cell">
                       {p.endDate ? new Date(p.endDate).toLocaleDateString() : "—"}
                     </td>
