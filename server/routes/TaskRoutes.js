@@ -6,6 +6,25 @@ const User = require("../models/User");
 const authMiddleware = require("../middleware/auth");
 const roleMiddleware = require("../middleware/role");
 
+// Recalculates and saves a project's status based on its tasks' current statuses.
+// Fully bidirectional: can advance to "Ongoing"/"Completed" or fall back to "Pending"/"Ongoing".
+async function syncProjectStatus(projectId) {
+  const tasks = await Task.find({ project: projectId });
+
+  let newStatus;
+  if (tasks.length === 0) {
+    return; // no tasks — leave project status untouched
+  } else if (tasks.every((t) => t.status === "Completed")) {
+    newStatus = "Completed";
+  } else if (tasks.some((t) => t.status !== "Pending")) {
+    newStatus = "Ongoing";
+  } else {
+    newStatus = "Pending";
+  }
+
+  await Project.findByIdAndUpdate(projectId, { status: newStatus });
+}
+
 // Create task (Supervisor only — must own the project, assignee must be an Internee)
 router.post("/", authMiddleware, roleMiddleware(["Supervisor"]), async (req, res) => {
   try {
@@ -36,6 +55,8 @@ router.post("/", authMiddleware, roleMiddleware(["Supervisor"]), async (req, res
       priority,
       deadline,
     });
+
+    await syncProjectStatus(project);
 
     const populated = await task.populate([
       { path: "project", select: "projectName" },
@@ -126,6 +147,8 @@ router.put(
         { path: "assignedTo", select: "name" },
       ]);
 
+      await syncProjectStatus(updated.project._id);
+
       res.status(200).json(updated);
     } catch (err) {
       res.status(500).json(err);
@@ -147,6 +170,9 @@ router.delete("/:id", authMiddleware, roleMiddleware(["Admin", "Supervisor"]), a
     }
 
     await Task.findByIdAndDelete(req.params.id);
+
+    await syncProjectStatus(existing.project._id);
+
     res.status(200).json({ message: "Task deleted successfully" });
   } catch (err) {
     res.status(500).json(err);

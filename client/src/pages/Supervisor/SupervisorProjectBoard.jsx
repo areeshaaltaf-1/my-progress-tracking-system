@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import SupervisorSidebar from "../../components/SupervisorSidebar";
 import api from "../../api/axios";
+import { useToast } from "../../context/ToastContext";
 import "../../assets/styles.css";
 
 const COLUMNS = [
@@ -19,6 +20,7 @@ function statusClass(status) {
 export default function SupervisorProjectBoard() {
   const { projectId } = useParams();
   const navigate = useNavigate();
+  const { showToast } = useToast();
 
   const [project, setProject] = useState(null);
   const [tasks, setTasks] = useState([]);
@@ -102,6 +104,7 @@ const logsForViewingTask = useMemo(() => {
       await api.post("/tasks", { ...newTask, project: projectId });
       setShowModal(false);
       fetchTasks();
+      showToast("Task assigned successfully");
     } catch (err) {
       console.error("Failed to create task", err);
       alert(err.response?.data?.message || "Failed to create task");
@@ -115,6 +118,7 @@ const logsForViewingTask = useMemo(() => {
       await api.put(`/tasks/${editingTask._id}`, updatedFields);
       setEditingTask(null);
       fetchTasks();
+       showToast("Task updated successfully");
     } catch (err) {
       console.error("Failed to update task", err);
       alert(err.response?.data?.message || "Failed to update task");
@@ -126,6 +130,7 @@ const logsForViewingTask = useMemo(() => {
     try {
       await api.delete(`/tasks/${taskId}`);
       fetchTasks();
+      showToast("Task deleted successfully");
     } catch (err) {
       console.error("Failed to delete task", err);
       alert(err.response?.data?.message || "Failed to delete task");
@@ -172,17 +177,20 @@ const logsForViewingTask = useMemo(() => {
         <div className="sv-breadcrumb">PROJECTS / {project.projectName}</div>
 
         <div className="project-header-card">
-          <div className="project-header-top">
-            <div>
-              <h1>{project.projectName}</h1>
-              <p className="project-desc">
-                {project.description}
-                {project.endDate
-                  ? ` · Deadline ${new Date(project.endDate).toLocaleDateString()}`
-                  : ""}
-              </p>
-            </div>
-            <div className="project-progress-block">
+          <div
+  className="project-header-top"
+  style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "24px" }}
+>
+  <div style={{ flex: 1, minWidth: 0 }}>
+    <h1>{project.projectName}</h1>
+    <p className="project-desc" style={{ fontSize: "1rem", lineHeight: 1.6 }}>
+      {project.description}
+      {project.endDate
+        ? ` · Deadline ${new Date(project.endDate).toLocaleDateString()}`
+        : ""}
+    </p>
+  </div>
+  <div className="project-progress-block" style={{ flexShrink: 0 }}>
               <button
                 className="btn-primary"
                 style={{ marginBottom: "12px" }}
@@ -217,66 +225,68 @@ const logsForViewingTask = useMemo(() => {
               <div className="column-cards">
                 {grouped[col.key].map((t) => (
                   <div
-                  className="task-card"
-                    key={t._id}
-                   onClick={() => setViewingLogsFor(t)}
-                   style={{ cursor: "pointer" }}
-                  >
-                    <p className="task-title">{t.title}</p>
-
-                    <div className="task-progress-track">
-                      <div
-                        className="task-progress-fill"
-                        style={{
-                          width: `${t.progress || 0}%`,
-                          backgroundColor: (t.progress || 0) >= 50 ? "#10b981" : "#f59e0b",
-                        }}
-                      />
-                    </div>
-
-                    <div className="task-card-footer">
-                      <div className="task-card-left">
-                        <span className={statusClass(t.status)}>
-                          <span className="status-dot" />
-                          {t.status}
-                        </span>
-                        <span className="task-progress-text">
-                            {t.progress || 0}%
-                               {t.deadline ? ` · due ${new Date(t.deadline).toLocaleDateString()}` : ""}
-                               {hoursByTask[t._id] ? ` · ${hoursByTask[t._id]}h logged` : ""}
-                           </span>
-                      </div>
-                      <span className="card-avatar" style={{ backgroundColor: "#2563eb" }}>
-                        {t.assignedTo?.name?.[0]?.toUpperCase() || "?"}
-                      </span>
-                    </div>
-
-                    <div
-                      className="task-card-actions"
-                      style={{ display: "flex", gap: "8px", marginTop: "8px" }}
-                    >
-                      <button
-  className="btn-secondary"
-  style={{ flex: 1, padding: "6px 0", fontSize: "0.8rem" }}
-  onClick={(e) => {
-    e.stopPropagation();
-    handleEditClick(t);
-  }}
+  className="task-card"
+  key={t._id}
+  onClick={() => setViewingLogsFor(t)}
+  style={{ padding: "18px", minHeight: "180px", cursor: "pointer" }}
 >
-  Edit
-</button>
-<button
-  className="btn-danger"
-  style={{ flex: 1, padding: "6px 0", fontSize: "0.8rem" }}
-  onClick={(e) => {
-    e.stopPropagation();
-    handleDeleteClick(t._id);
-  }}
->
-  Delete
-</button>
-                    </div>
-                  </div>
+  <p className="task-title" style={{ fontSize: "1.05rem", marginBottom: "10px" }}>
+    {t.title}
+  </p>
+
+  <div className="task-progress-track">
+    <div
+      className="task-progress-fill"
+      style={{
+        width: `${t.progress || 0}%`,
+        backgroundColor: (t.progress || 0) >= 50 ? "#10b981" : "#f59e0b",
+      }}
+    />
+  </div>
+
+  <div className="task-card-footer" style={{ marginTop: "10px" }}>
+    <div className="task-card-left">
+      <span className={statusClass(t.status)} style={{ fontSize: "0.85rem" }}>
+        <span className="status-dot" />
+        {t.status}
+      </span>
+      <span className="task-progress-text" style={{ fontSize: "0.85rem" }}>
+        {t.progress || 0}%
+        {t.deadline ? ` · due ${new Date(t.deadline).toLocaleDateString()}` : ""}
+        {hoursByTask[t._id] ? ` · ${hoursByTask[t._id]}h logged` : ""}
+      </span>
+    </div>
+    <span className="card-avatar" style={{ backgroundColor: "#2563eb" }}>
+      {t.assignedTo?.name?.[0]?.toUpperCase() || "?"}
+    </span>
+  </div>
+
+  <div
+    className="task-card-actions"
+    style={{ display: "flex", gap: "8px", marginTop: "12px" }}
+  >
+    <button
+      className="btn-secondary"
+      style={{ flex: 1, padding: "7px 0", fontSize: "0.85rem" }}
+      onClick={(e) => {
+        e.stopPropagation();
+        handleEditClick(t);
+      }}
+    >
+      Edit
+    </button>
+    <button
+      className="btn-danger"
+      style={{ flex: 1, padding: "7px 0", fontSize: "0.85rem" }}
+      onClick={(e) => {
+        e.stopPropagation();
+        handleDeleteClick(t._id);
+      }}
+    >
+      Delete
+    </button>
+  </div>
+</div>
                 ))}
                 {grouped[col.key].length === 0 && (
                   <p className="empty-row" style={{ fontSize: "0.85rem" }}>

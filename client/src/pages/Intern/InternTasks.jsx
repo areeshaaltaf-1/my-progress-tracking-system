@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import InternSidebar from "../../components/InternSidebar";
 import api from "../../api/axios";
 import "../../assets/styles.css";
+import { useToast } from "../../context/ToastContext";
 
 const STATUS_STYLES = {
   Overdue: "it-badge overdue",
@@ -34,6 +35,7 @@ function displayStatus(task) {
 export default function InternTasks() {
   const { projectId } = useParams();
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("All");
   const [tasks, setTasks] = useState([]);
@@ -81,6 +83,7 @@ const handleSaveProgress = async (task) => {
   try {
     await api.put(`/tasks/${task._id}`, { status, progress: value });
     await fetchTasks();
+    showToast("Progress saved successfully");
   } catch (err) {
     console.error("Failed to update progress", err);
     alert(err.response?.data?.message || "Failed to update task");
@@ -238,13 +241,14 @@ const handleSaveProgress = async (task) => {
       }}
     />
     <button
-      className="btn-primary"
-      style={{ flex: 2, padding: "4px 0", fontSize: "0.8rem" }}
-      disabled={updatingId === task._id}
-      onClick={() => handleSaveProgress(task)}
-    >
-      {updatingId === task._id ? "Saving..." : "Save Progress"}
-    </button>
+  className="btn-primary"
+  style={{ maxWidth: "360px" }}
+  
+  disabled={updatingId === task._id}
+  onClick={() => handleSaveProgress(task)}
+>
+  {updatingId === task._id ? "Saving..." : "Save Progress"}
+</button>
   </div>
 )}
                 </div>

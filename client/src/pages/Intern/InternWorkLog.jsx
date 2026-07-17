@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import InternSidebar from "../../components/InternSidebar";
 import api from "../../api/axios";
 import "../../assets/styles.css";
+import { useToast } from "../../context/ToastContext";
 
 function getCurrentUser() {
   try {
@@ -21,7 +22,7 @@ function formatDate(d) {
 
 export default function InternWorkLog() {
   const currentUser = getCurrentUser();
-
+  const { showToast } = useToast();
   const [tasks, setTasks] = useState([]);
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -71,6 +72,7 @@ export default function InternWorkLog() {
       setHours("");
       setNote("");
       await fetchData();
+      showToast("Entry added successfully");
     } catch (err) {
       console.error("Failed to add log entry", err);
       alert(err.response?.data?.message || "Failed to add entry");
@@ -164,9 +166,14 @@ export default function InternWorkLog() {
                 />
               </div>
 
-              <button className="btn-primary" onClick={handleAddLog} disabled={saving}>
-                {saving ? "Adding..." : "Add Entry"}
-              </button>
+              <button
+  className="btn-primary"
+  style={{ maxWidth: "200px" }}
+  onClick={handleAddLog}
+  disabled={saving}
+>
+  {saving ? "Adding..." : "Add Entry"}
+</button>
             </>
           )}
         </div>
