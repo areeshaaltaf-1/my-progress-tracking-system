@@ -1,30 +1,37 @@
 const mongoose = require("mongoose");
 
-const workLogSchema = new mongoose.Schema({
-  internee: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
-  },
+const workLogSchema = new mongoose.Schema(
+  {
+    task: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Task",
+      required: true,
+    },
 
-  task: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Task",
-  },
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
 
-  workDone: {
-    type: String,
-    required: true,
-  },
+    hours: {
+      type: Number,
+      required: true,
+      min: 0.25,
+    },
 
-  hoursSpent: {
-    type: Number,
-    required: true,
-  },
+    note: {
+      type: String,
+      required: true,
+      trim: true,
+    },
 
-  date: {
-    type: Date,
-    default: Date.now,
+    date: {
+      type: Date,
+      default: Date.now,
+    },
   },
-});
+  { timestamps: true }
+);
 
 module.exports = mongoose.model("WorkLog", workLogSchema);

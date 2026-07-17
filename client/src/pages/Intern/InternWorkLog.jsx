@@ -1,81 +1,107 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import InternSidebar from "../../components/InternSidebar";
+import api from "../../api/axios";
 import "../../assets/styles.css";
 
-const initialLogs = [
-  {
-    id: 1,
-    date: "11 Jul 2026",
-    task: "Automate phishing-report triage playbook",
-    hours: 3.5,
-    note: "Built the initial trigger logic and connected it to the ticket queue. Still need to test edge cases for malformed headers.",
-  },
-  {
-    id: 2,
-    date: "11 Jul 2026",
-    task: "Write detection rules for lateral movement",
-    hours: 1,
-    note: "Read through past incident reports to identify common lateral movement patterns before writing rules.",
-  },
-  {
-    id: 3,
-    date: "10 Jul 2026",
-    task: "Close firewall gaps list — Network Hardening",
-    hours: 2,
-    note: "Cross-checked current firewall rules against the audit list. Found 4 gaps, flagged to Bilal for review.",
-  },
-  {
-    id: 4,
-    date: "09 Jul 2026",
-    task: "Define playbook taxonomy & tagging",
-    hours: 4,
-    note: "Finalized tag categories and applied them across all existing playbooks. Marked as completed.",
-  },
-];
+function getCurrentUser() {
+  try {
+    return JSON.parse(sessionStorage.getItem("user"));
+  } catch {
+    return null;
+  }
+}
 
-const taskOptions = [
-  "Close firewall gaps list — Network Hardening",
-  "Automate phishing-report triage playbook",
-  "Write detection rules for lateral movement",
-  "Define playbook taxonomy & tagging",
-];
+function formatDate(d) {
+  return new Date(d).toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
 
 export default function InternWorkLog() {
-  const [logs, setLogs] = useState(initialLogs);
-  const [task, setTask] = useState(taskOptions[0]);
+  const currentUser = getCurrentUser();
+
+  const [tasks, setTasks] = useState([]);
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const [taskId, setTaskId] = useState("");
   const [hours, setHours] = useState("");
   const [note, setNote] = useState("");
 
-  const handleAddLog = () => {
-    if (!hours || !note.trim()) return;
+  const fetchData = async () => {
+    try {
+      const [taskRes, logRes] = await Promise.all([
+        api.get("/tasks"),
+        api.get("/worklogs"),
+      ]);
 
-    const newLog = {
-      id: Date.now(),
-      date: new Date().toLocaleDateString("en-GB", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      }),
-      task,
-      hours: parseFloat(hours),
-      note: note.trim(),
-    };
+      const myTasks = taskRes.data.filter((t) => t.assignedTo?._id === currentUser?.id);
+      setTasks(myTasks);
+      if (myTasks.length && !taskId) setTaskId(myTasks[0]._id);
 
-    setLogs([newLog, ...logs]);
-    setHours("");
-    setNote("");
+      setLogs(logRes.data);
+    } catch (err) {
+      console.error("Failed to fetch work log data", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleAddLog = async () => {
+    if (!taskId || !hours || !note.trim()) return;
+
+    const hoursNum = parseFloat(hours);
+    if (isNaN(hoursNum) || hoursNum <= 0) return;
+
+    setSaving(true);
+    try {
+      await api.post("/worklogs", {
+        task: taskId,
+        hours: hoursNum,
+        note: note.trim(),
+      });
+      setHours("");
+      setNote("");
+      await fetchData();
+    } catch (err) {
+      console.error("Failed to add log entry", err);
+      alert(err.response?.data?.message || "Failed to add entry");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const groupedByDate = logs.reduce((acc, log) => {
-    if (!acc[log.date]) acc[log.date] = [];
-    acc[log.date].push(log);
+    const label = formatDate(log.date);
+    if (!acc[label]) acc[label] = [];
+    acc[label].push(log);
     return acc;
   }, {});
 
   const totalHours = logs.reduce((a, l) => a + l.hours, 0);
+  const todayLabel = formatDate(new Date());
   const todayHours = logs
-    .filter((l) => l.date === logs[0]?.date)
+    .filter((l) => formatDate(l.date) === todayLabel)
     .reduce((a, l) => a + l.hours, 0);
+
+  if (loading) {
+    return (
+      <div className="smp-layout it-page">
+        <InternSidebar />
+        <main className="smp-main it-main">
+          <p>Loading work log...</p>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="smp-layout it-page">
@@ -99,41 +125,50 @@ export default function InternWorkLog() {
         </div>
 
         <div className="wl-form-card">
-          <div className="wl-form-row">
-            <div className="wl-field">
-              <label>Task</label>
-              <select value={task} onChange={(e) => setTask(e.target.value)}>
-                {taskOptions.map((t) => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
-              </select>
-            </div>
-            <div className="wl-field wl-field-hours">
-              <label>Hours</label>
-              <input
-                type="number"
-                min="0"
-                step="0.5"
-                placeholder="e.g. 2.5"
-                value={hours}
-                onChange={(e) => setHours(e.target.value)}
-              />
-            </div>
-          </div>
+          {tasks.length === 0 ? (
+            <p className="it-subtitle">You have no assigned tasks to log time against yet.</p>
+          ) : (
+            <>
+              <div className="wl-form-row">
+                <div className="wl-field">
+                  <label>Task</label>
+                  <select value={taskId} onChange={(e) => setTaskId(e.target.value)}>
+                    {tasks.map((t) => (
+                      <option key={t._id} value={t._id}>
+                        {t.title}
+                        {t.project?.projectName ? ` — ${t.project.projectName}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="wl-field wl-field-hours">
+                  <label>Hours</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.5"
+                    placeholder="e.g. 2.5"
+                    value={hours}
+                    onChange={(e) => setHours(e.target.value)}
+                  />
+                </div>
+              </div>
 
-          <div className="wl-field">
-            <label>What did you work on?</label>
-            <textarea
-              rows={3}
-              placeholder="Briefly describe what you did..."
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-            />
-          </div>
+              <div className="wl-field">
+                <label>What did you work on?</label>
+                <textarea
+                  rows={3}
+                  placeholder="Briefly describe what you did..."
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                />
+              </div>
 
-          <button className="btn-primary" onClick={handleAddLog}>
-            Add Entry
-          </button>
+              <button className="btn-primary" onClick={handleAddLog} disabled={saving}>
+                {saving ? "Adding..." : "Add Entry"}
+              </button>
+            </>
+          )}
         </div>
 
         <div className="wl-log-list">
@@ -144,9 +179,12 @@ export default function InternWorkLog() {
               <div key={date} className="wl-day-group">
                 <p className="wl-day-label">{date}</p>
                 {entries.map((entry) => (
-                  <div key={entry.id} className="wl-entry-card">
+                  <div key={entry._id} className="wl-entry-card">
                     <div className="wl-entry-top">
-                      <h4 className="wl-entry-task">{entry.task}</h4>
+                      <h4 className="wl-entry-task">
+                        {entry.task?.title}
+                        {entry.task?.project?.projectName ? ` — ${entry.task.project.projectName}` : ""}
+                      </h4>
                       <span className="wl-entry-hours">{entry.hours}h</span>
                     </div>
                     <p className="wl-entry-note">{entry.note}</p>

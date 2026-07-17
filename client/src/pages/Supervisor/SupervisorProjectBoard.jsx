@@ -27,6 +27,16 @@ export default function SupervisorProjectBoard() {
   const [editingTask, setEditingTask] = useState(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [workLogs, setWorkLogs] = useState([]);
+  const [viewingLogsFor, setViewingLogsFor] = useState(null);
+  const fetchWorkLogs = async () => {
+  try {
+    const res = await api.get(`/worklogs/project/${projectId}`);
+    setWorkLogs(res.data);
+  } catch (err) {
+    console.error("Failed to fetch work logs", err);
+  }
+};
 
   const fetchProject = async () => {
     try {
@@ -57,13 +67,13 @@ export default function SupervisorProjectBoard() {
   };
 
   useEffect(() => {
-    setLoading(true);
-    setNotFound(false);
-    Promise.all([fetchProject(), fetchTasks(), fetchInterns()]).finally(() =>
-      setLoading(false)
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId]);
+  setLoading(true);
+  setNotFound(false);
+  Promise.all([fetchProject(), fetchTasks(), fetchInterns(), fetchWorkLogs()]).finally(() =>
+    setLoading(false)
+  );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [projectId]);
 
   const grouped = useMemo(() => {
     const map = {};
@@ -71,6 +81,21 @@ export default function SupervisorProjectBoard() {
     tasks.forEach((t) => map[t.status]?.push(t));
     return map;
   }, [tasks]);
+  const hoursByTask = useMemo(() => {
+  const map = {};
+  workLogs.forEach((log) => {
+    const id = log.task?._id;
+    if (!id) return;
+    map[id] = (map[id] || 0) + log.hours;
+  });
+  return map;
+}, [workLogs]);
+const logsForViewingTask = useMemo(() => {
+  if (!viewingLogsFor) return [];
+  return workLogs
+    .filter((log) => log.task?._id === viewingLogsFor._id)
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
+}, [viewingLogsFor, workLogs]);
 
   const handleAssign = async (newTask) => {
     try {
@@ -191,7 +216,12 @@ export default function SupervisorProjectBoard() {
 
               <div className="column-cards">
                 {grouped[col.key].map((t) => (
-                  <div className="task-card" key={t._id}>
+                  <div
+                  className="task-card"
+                    key={t._id}
+                   onClick={() => setViewingLogsFor(t)}
+                   style={{ cursor: "pointer" }}
+                  >
                     <p className="task-title">{t.title}</p>
 
                     <div className="task-progress-track">
@@ -211,9 +241,10 @@ export default function SupervisorProjectBoard() {
                           {t.status}
                         </span>
                         <span className="task-progress-text">
-                          {t.progress || 0}%
-                          {t.deadline ? ` · due ${new Date(t.deadline).toLocaleDateString()}` : ""}
-                        </span>
+                            {t.progress || 0}%
+                               {t.deadline ? ` · due ${new Date(t.deadline).toLocaleDateString()}` : ""}
+                               {hoursByTask[t._id] ? ` · ${hoursByTask[t._id]}h logged` : ""}
+                           </span>
                       </div>
                       <span className="card-avatar" style={{ backgroundColor: "#2563eb" }}>
                         {t.assignedTo?.name?.[0]?.toUpperCase() || "?"}
@@ -225,19 +256,25 @@ export default function SupervisorProjectBoard() {
                       style={{ display: "flex", gap: "8px", marginTop: "8px" }}
                     >
                       <button
-                        className="btn-secondary"
-                        style={{ flex: 1, padding: "6px 0", fontSize: "0.8rem" }}
-                        onClick={() => handleEditClick(t)}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        className="btn-danger"
-                        style={{ flex: 1, padding: "6px 0", fontSize: "0.8rem" }}
-                        onClick={() => handleDeleteClick(t._id)}
-                      >
-                        Delete
-                      </button>
+  className="btn-secondary"
+  style={{ flex: 1, padding: "6px 0", fontSize: "0.8rem" }}
+  onClick={(e) => {
+    e.stopPropagation();
+    handleEditClick(t);
+  }}
+>
+  Edit
+</button>
+<button
+  className="btn-danger"
+  style={{ flex: 1, padding: "6px 0", fontSize: "0.8rem" }}
+  onClick={(e) => {
+    e.stopPropagation();
+    handleDeleteClick(t._id);
+  }}
+>
+  Delete
+</button>
                     </div>
                   </div>
                 ))}
@@ -274,6 +311,55 @@ export default function SupervisorProjectBoard() {
           onSave={handleEditSave}
         />
       )}
+      {viewingLogsFor && (
+  <div className="modal-overlay" onClick={() => setViewingLogsFor(null)}>
+    <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-header">
+        <h3>{viewingLogsFor.title}</h3>
+        <button className="modal-close" onClick={() => setViewingLogsFor(null)}>
+          &times;
+        </button>
+      </div>
+
+      <div style={{ padding: "4px 0" }}>
+        <p style={{ fontSize: "0.85rem", color: "#6b7280", marginBottom: "12px" }}>
+          {hoursByTask[viewingLogsFor._id] || 0}h logged total ·{" "}
+          {logsForViewingTask.length} entr{logsForViewingTask.length === 1 ? "y" : "ies"}
+        </p>
+
+        {logsForViewingTask.length === 0 ? (
+          <p className="empty-row">No time logged on this task yet.</p>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px", maxHeight: "300px", overflowY: "auto" }}>
+            {logsForViewingTask.map((log) => (
+              <div
+                key={log._id}
+                style={{
+                  border: "1px solid #e2e8f0",
+                  borderRadius: "8px",
+                  padding: "10px 12px",
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+                  <span style={{ fontWeight: 600, fontSize: "0.85rem" }}>
+                    {log.user?.name || "Unknown"}
+                  </span>
+                  <span style={{ fontSize: "0.8rem", color: "#059669", fontWeight: 600 }}>
+                    {log.hours}h
+                  </span>
+                </div>
+                <p style={{ fontSize: "0.75rem", color: "#9ca3af", marginBottom: "6px" }}>
+                  {new Date(log.date).toLocaleDateString()}
+                </p>
+                <p style={{ fontSize: "0.85rem", color: "#374151" }}>{log.note}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 }
