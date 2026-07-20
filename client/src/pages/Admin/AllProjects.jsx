@@ -83,12 +83,11 @@ function AllProjects() {
   ).length;
 
   const projectProgress = (projectId) => {
-    const pTasks = tasks.filter((t) => t.project?._id === projectId);
-    if (pTasks.length === 0) return 0;
-    const completed = pTasks.filter((t) => t.status === "Completed").length;
-    return Math.round((completed / pTasks.length) * 100);
-  };
-
+  const pTasks = tasks.filter((t) => t.project?._id === projectId);
+  if (pTasks.length === 0) return 0;
+  const total = pTasks.reduce((sum, t) => sum + (t.progress || 0), 0);
+  return Math.round(total / pTasks.length);
+};
 const handleCreate = async () => {
   try {
     if (editingId) {

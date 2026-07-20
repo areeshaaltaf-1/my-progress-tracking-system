@@ -5,6 +5,7 @@ const Project = require("../models/Project");
 const User = require("../models/User");
 const authMiddleware = require("../middleware/auth");
 const roleMiddleware = require("../middleware/role");
+const WorkLog = require("../models/WorkLog");
 
 // Recalculates and saves a project's status based on its tasks' current statuses.
 // Fully bidirectional: can advance to "Ongoing"/"Completed" or fall back to "Pending"/"Ongoing".
@@ -169,7 +170,8 @@ router.delete("/:id", authMiddleware, roleMiddleware(["Admin", "Supervisor"]), a
       return res.status(403).json({ message: "You can only delete tasks in your own projects" });
     }
 
-    await Task.findByIdAndDelete(req.params.id);
+    await WorkLog.deleteMany({ task: req.params.id });
+await Task.findByIdAndDelete(req.params.id);
 
     await syncProjectStatus(existing.project._id);
 

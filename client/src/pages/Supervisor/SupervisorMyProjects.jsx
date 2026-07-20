@@ -63,11 +63,11 @@ export default function SupervisorMyProjects() {
     tasks.filter((t) => t.project?._id === projectId);
 
   const projectProgress = (projectId) => {
-    const pTasks = projectTasks(projectId);
-    if (pTasks.length === 0) return 0;
-    const completed = pTasks.filter((t) => t.status === "Completed").length;
-    return Math.round((completed / pTasks.length) * 100);
-  };
+  const pTasks = projectTasks(projectId);
+  if (pTasks.length === 0) return 0;
+  const total = pTasks.reduce((sum, t) => sum + (t.progress || 0), 0);
+  return Math.round(total / pTasks.length);
+};
 
   const filtered = projects.filter((p) => {
     const matchStatus = filter === "All" || p.status === filter;

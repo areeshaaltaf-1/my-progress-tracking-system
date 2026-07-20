@@ -176,86 +176,75 @@ const handleSaveProgress = async (task) => {
         </div>
 
         {filtered.length === 0 ? (
-          <div className="smp-empty">No tasks match your search.</div>
-        ) : (
-          <div className="it-task-list">
-            {filtered.map((task) => {
-              const status = displayStatus(task);
-              return (
-                <div
-                  key={task._id}
-                  className={`it-task-row ${status === "Overdue" ? "overdue" : ""} ${
-                    task.status === "Completed" ? "completed" : ""
-                  }`}
-                >
-                  <div className="it-task-top">
-                    <div>
-                      <h3 className="it-task-title">{task.title}</h3>
-                      <p className="it-task-supervisor">
-                        {task.project?.projectName || ""}
-                      </p>
-                    </div>
-                    <span className={STATUS_STYLES[status]}>
-                      <span className="it-badge-dot" />
-                      {status}
-                    </span>
-                  </div>
+  <div className="smp-empty">No tasks match your search.</div>
+) : (
+  <div className="it-task-list">
+    {filtered.map((task) => {
+      const status = displayStatus(task);
+      return (
+        <div
+          key={task._id}
+          className={`it-row-compact ${status === "Overdue" ? "overdue" : ""} ${
+            task.status === "Completed" ? "completed" : ""
+          }`}
+        >
+          <span className={STATUS_STYLES[status]}>
+            <span className="it-badge-dot" />
+            {status}
+          </span>
 
-                  <div className="it-progress-track">
-                    <div
-                      className="it-progress-fill"
-                      style={{
-                        width: `${task.progress || 0}%`,
-                        background:
-                          status === "Overdue"
-                            ? "#ef4444"
-                            : task.status === "Completed"
-                            ? "#22c55e"
-                            : "#10b981",
-                      }}
-                    />
-                  </div>
+          <div className="it-row-title">
+            <span className="it-row-name">{task.title}</span>
+            <span className="it-row-project">{task.project?.projectName || ""}</span>
+          </div>
 
-                  <div className="it-task-footer">
-                    <span>{task.progress || 0}%</span>
-                    <span>
-                      {task.deadline ? new Date(task.deadline).toLocaleDateString() : "No deadline"}
-                    </span>
-                  </div>
+          <div className="it-progress-track">
+            <div
+              className="it-progress-fill"
+              style={{
+                width: `${task.progress || 0}%`,
+                background:
+                  status === "Overdue"
+                    ? "#ef4444"
+                    : task.status === "Completed"
+                    ? "#22c55e"
+                    : "#10b981",
+              }}
+            />
+          </div>
+          <span className="it-row-pct">{task.progress || 0}%</span>
 
-                 {task.status !== "Completed" && (
-  <div style={{ display: "flex", gap: "8px", marginTop: "10px", alignItems: "center" }}>
-    <input
-      type="number"
-      min="0"
-      max="100"
-      placeholder="%"
-      value={progressInputs[task._id] ?? task.progress ?? 0}
-      onChange={(e) => handleProgressChange(task._id, e.target.value)}
-      style={{
-        width: "70px",
-        padding: "6px 8px",
-        borderRadius: "6px",
-        border: "1px solid #e2e8f0",
-        fontSize: "0.8rem",
-      }}
-    />
-    <button
-  className="btn-primary"
-  style={{ maxWidth: "360px" }}
-  
-  disabled={updatingId === task._id}
-  onClick={() => handleSaveProgress(task)}
->
-  {updatingId === task._id ? "Saving..." : "Save Progress"}
-</button>
+          {task.status !== "Completed" ? (
+            <div className="it-row-form">
+              <input
+                type="number"
+                min="0"
+                max="100"
+                placeholder="%"
+                value={progressInputs[task._id] ?? task.progress ?? 0}
+                onChange={(e) => handleProgressChange(task._id, e.target.value)}
+                className="it-progress-input"
+              />
+              <button
+                className="btn-primary it-save-btn"
+                disabled={updatingId === task._id}
+                onClick={() => handleSaveProgress(task)}
+              >
+                {updatingId === task._id ? "..." : "Save Progress"}
+              </button>
+            </div>
+          ) : (
+            <div className="it-row-form" />
+          )}
+
+          <span className="it-row-date">
+            {task.deadline ? new Date(task.deadline).toLocaleDateString() : "No deadline"}
+          </span>
+        </div>
+      );
+    })}
   </div>
 )}
-                </div>
-              );
-            })}
-          </div>
-        )}
       </main>
     </div>
   );

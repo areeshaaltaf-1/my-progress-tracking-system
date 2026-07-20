@@ -3,6 +3,8 @@ const router = express.Router();
 const Project = require("../models/Project");
 const authMiddleware = require("../middleware/auth");
 const roleMiddleware = require("../middleware/role");
+const Task = require("../models/Task");
+const WorkLog = require("../models/WorkLog");
 
 // Create project (Admin only)
 router.post("/create", authMiddleware, roleMiddleware(["Admin"]), async (req, res) => {
@@ -56,13 +58,22 @@ router.put("/:id", authMiddleware, roleMiddleware(["Admin"]), async (req, res) =
   }
 });
 
-// Delete project (Admin only)
+// Delete project (Admin only) — cascades to related tasks and their worklogs
 router.delete("/:id", authMiddleware, roleMiddleware(["Admin"]), async (req, res) => {
   try {
     const deleted = await Project.findByIdAndDelete(req.params.id);
     if (!deleted) {
       return res.status(404).json({ message: "Project not found" });
     }
+
+    const tasksToDelete = await Task.find({ project: req.params.id });
+    const taskIds = tasksToDelete.map((t) => t._id);
+
+    if (taskIds.length > 0) {
+      await WorkLog.deleteMany({ task: { $in: taskIds } });
+      await Task.deleteMany({ project: req.params.id });
+    }
+
     res.status(200).json({ message: "Project deleted successfully" });
   } catch (err) {
     res.status(500).json(err);

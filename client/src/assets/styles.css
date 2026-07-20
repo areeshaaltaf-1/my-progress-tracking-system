@@ -815,6 +815,7 @@ body {
 .table-progress-fill {
   height: 100%;
   border-radius: 20px;
+  background: #10b981;
 }
 
 .tasks-cell { font-size: 13px; color: #374151; }
@@ -2025,14 +2026,15 @@ body {
 
 .it-task-row {
   background: #fff; border: 1px solid #e5e7eb;
-  border-left: 4px solid #e5e7eb; border-radius: 10px; padding: 18px 20px;
+  border-left: 4px solid #e5e7eb; border-radius: 10px; padding: 14px 20px;
+  max-width: 620px;
 }
 .it-task-row.overdue { border-left-color: #ef4444; }
 .it-task-row.completed { opacity: 0.65; }
 
 .it-task-top {
   display: flex; justify-content: space-between;
-  align-items: flex-start; margin-bottom: 12px; gap: 12px;
+  align-items: flex-start; margin-bottom: 8px; gap: 12px;
 }
 .it-task-title { font-size: 14px; font-weight: 700; color: #111827; margin: 0; }
 .it-task-supervisor { font-size: 12px; color: #9ca3af; margin: 4px 0 0; }
@@ -2049,13 +2051,81 @@ body {
 .it-badge.completed { background: #f1f5f9; color: #94a3b8; }
 
 .it-progress-track {
-  height: 7px; background: #f3f4f6; border-radius: 999px;
-  overflow: hidden; margin-bottom: 8px;
+  width: 160px;
+  height: 6px;
+  background: #f3f4f6;
+  border-radius: 999px;
+  overflow: hidden;
+  flex-shrink: 0;
 }
 .it-progress-fill { height: 100%; border-radius: 999px; transition: width 0.4s ease; }
 
 .it-task-footer {
   display: flex; justify-content: space-between; font-size: 12px; color: #6b7280;
+}
+.it-task-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.it-task-inline-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.it-progress-input {
+  width: 55px;
+  padding: 5px 7px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  font-size: 0.78rem;
+  font-family: inherit;
+}
+
+.it-save-btn {
+  padding: 6px 12px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.it-task-pct { font-size: 12px; font-weight: 700; color: #111827; }
+.it-task-date { font-size: 12px; color: #9ca3af; }
+
+
+.it-task-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+  color: #6b7280;
+}
+.it-task-pct { font-weight: 700; color: #111827; }
+.it-task-date { color: #9ca3af; }
+
+.it-task-inline-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.it-progress-input {
+  width: 60px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  font-size: 0.8rem;
+  font-family: inherit;
+}
+
+.it-save-btn {
+  padding: 7px 14px;
+  font-size: 12.5px;
+  white-space: nowrap;
 }
 
 
@@ -2117,4 +2187,97 @@ body {
 }
 .btn-danger:hover {
   background: #fecaca;
+}
+.it-task-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.it-progress-track {
+  width: 140px;
+  height: 6px;
+  background: #f3f4f6;
+  border-radius: 999px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.it-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+}
+
+.it-task-pct {
+  font-size: 12px;
+  font-weight: 700;
+  color: #111827;
+  flex-shrink: 0;
+}
+
+.it-progress-input {
+  width: 50px;
+  padding: 5px 6px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  font-size: 0.78rem;
+  font-family: inherit;
+}
+
+.it-save-btn {
+  padding: 6px 12px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.it-task-date {
+  font-size: 12px;
+  color: #9ca3af;
+  margin-left: auto;
+}
+.it-row-compact {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-left: 4px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 16px 18px;
+  max-width: 850px;
+}
+.it-row-compact.overdue { border-left-color: #ef4444; }
+.it-row-compact.completed { opacity: 0.65; }
+
+.it-row-title {
+  display: flex;
+  flex-direction: column;
+  width: 220px;
+  flex-shrink: 0;
+}
+.it-row-name { font-size: 13px; font-weight: 700; color: #111827; }
+.it-row-project { font-size: 11px; color: #9ca3af; }
+
+.it-row-pct {
+  font-size: 12px;
+  font-weight: 700;
+  color: #111827;
+  width: 34px;
+  flex-shrink: 0;
+}
+
+.it-row-form {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 160px;
+  flex-shrink: 0;
+}
+
+.it-row-date {
+  font-size: 12px;
+  color: #9ca3af;
+  width: 90px;
+  text-align: right;
+  flex-shrink: 0;
 }

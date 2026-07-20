@@ -163,12 +163,11 @@ const logsForViewingTask = useMemo(() => {
   }
 
   const progress =
-    tasks.length === 0
-      ? 0
-      : Math.round(
-          (tasks.filter((t) => t.status === "Completed").length / tasks.length) * 100
-        );
-
+  tasks.length === 0
+    ? 0
+    : Math.round(
+        tasks.reduce((sum, t) => sum + (t.progress || 0), 0) / tasks.length
+      );
   return (
     <div className="supervisor-layout">
       <SupervisorSidebar />
