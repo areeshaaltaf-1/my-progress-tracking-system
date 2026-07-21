@@ -1,92 +1,117 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import SupervisorSidebar from "../../components/SupervisorSidebar";
+import api from "../../api/axios";
 import "../../assets/styles.css";
 
-const teamData = [
-  {
-    id: 1,
-    name: "Zara Farooq",
-    initials: "ZF",
-    role: "SOC Analyst",
-    email: "zara.farooq@signal.io",
-    color: "#e91e8c",
-    status: "Active",
-    projects: 3,
-    tasksCompleted: 18,
-    tasksTotal: 22,
-  },
-  {
-    id: 2,
-    name: "Bilal Khan",
-    initials: "BK",
-    role: "Threat Hunter",
-    email: "bilal.khan@signal.io",
-    color: "#7c3aed",
-    status: "Active",
-    projects: 2,
-    tasksCompleted: 11,
-    tasksTotal: 15,
-  },
-  {
-    id: 3,
-    name: "Hamza Malik",
-    initials: "HM",
-    role: "Detection Engineer",
-    email: "hamza.malik@signal.io",
-    color: "#0ea5e9",
-    status: "Away",
-    projects: 2,
-    tasksCompleted: 9,
-    tasksTotal: 14,
-  },
-  {
-    id: 4,
-    name: "Ahmed Raza",
-    initials: "AR",
-    role: "Supervisor",
-    email: "ahmed.raza@signal.io",
-    color: "#10b981",
-    status: "Active",
-    projects: 4,
-    tasksCompleted: 20,
-    tasksTotal: 20,
-  },
-  {
-    id: 5,
-    name: "Noor Siddiqui",
-    initials: "NS",
-    role: "SOC Analyst",
-    email: "noor.siddiqui@signal.io",
-    color: "#f59e0b",
-    status: "Active",
-    projects: 1,
-    tasksCompleted: 6,
-    tasksTotal: 9,
-  },
-];
+const AVATAR_COLORS = ["#e91e8c", "#7c3aed", "#0ea5e9", "#10b981", "#f59e0b", "#ef4444"];
+
+function getInitials(name) {
+  return name
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+}
 
 export default function SupervisorTeam() {
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState("All");
+  const [projects, setProjects] = useState([]);
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const filters = ["All", "Active", "Away"];
+  const currentUser = useMemo(() => {
+    try {
+      return JSON.parse(sessionStorage.getItem("user") || "{}");
+    } catch {
+      return {};
+    }
+  }, []);
 
-  const filtered = teamData.filter((m) => {
-    const matchStatus = filter === "All" || m.status === filter;
-    const matchSearch =
+  const fetchData = async () => {
+    try {
+      const [projRes, taskRes] = await Promise.all([
+        api.get("/projects"),
+        api.get("/tasks"),
+      ]);
+
+      const myProjects = projRes.data.filter(
+        (p) => p.supervisor && p.supervisor._id === currentUser.id
+      );
+      setProjects(myProjects);
+
+      const myProjectIds = myProjects.map((p) => p._id);
+      const myTasks = taskRes.data.filter(
+        (t) => t.project && myProjectIds.includes(t.project._id)
+      );
+      setTasks(myTasks);
+    } catch (err) {
+      console.error("Failed to fetch team data", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Build one entry per unique intern from myTasks
+  const team = useMemo(() => {
+    const map = {};
+    tasks.forEach((t) => {
+      if (!t.assignedTo) return;
+      const id = t.assignedTo._id;
+      if (!map[id]) {
+        map[id] = {
+          id,
+          name: t.assignedTo.name,
+          email: t.assignedTo.email,
+          department: t.assignedTo.department,
+          projectIds: new Set(),
+          tasksTotal: 0,
+          tasksCompleted: 0,
+        };
+      }
+      map[id].projectIds.add(t.project._id);
+     map[id].tasksTotal += 1;
+map[id].progressSum = (map[id].progressSum || 0) + (t.progress || 0);
+if (t.status === "Completed") map[id].tasksCompleted += 1;
+    });
+    return Object.values(map).map((m, i) => ({
+      ...m,
+      projects: m.projectIds.size,
+      color: AVATAR_COLORS[i % AVATAR_COLORS.length],
+      initials: getInitials(m.name),
+    }));
+  }, [tasks]);
+
+  const filtered = team.filter(
+    (m) =>
       m.name.toLowerCase().includes(search.toLowerCase()) ||
-      m.role.toLowerCase().includes(search.toLowerCase());
-    return matchStatus && matchSearch;
-  });
-
-  const totalMembers = teamData.length;
-  const activeMembers = teamData.filter((m) => m.status === "Active").length;
-  const totalProjects = teamData.reduce((a, m) => a + m.projects, 0);
-  const avgCompletion = Math.round(
-    teamData.reduce((a, m) => a + m.tasksCompleted / m.tasksTotal, 0) /
-      teamData.length *
-      100
+      (m.department || "").toLowerCase().includes(search.toLowerCase())
   );
+
+  const totalMembers = team.length;
+  const totalProjects = new Set(tasks.map((t) => t.project._id)).size;
+  const avgCompletion =
+  team.length === 0
+    ? 0
+    : Math.round(
+        team.reduce((a, m) => a + m.progressSum / (m.tasksTotal || 1), 0) / team.length
+      );
+
+  if (loading) {
+    return (
+      <div className="smp-layout">
+        <SupervisorSidebar />
+        <main className="smp-main">
+          <p>Loading team...</p>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="smp-layout">
@@ -113,29 +138,11 @@ export default function SupervisorTeam() {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-
-          <div className="smp-filters">
-            {filters.map((f) => (
-              <button
-                key={f}
-                className={`smp-filter-btn ${filter === f ? "active" : ""}`}
-                onClick={() => setFilter(f)}
-              >
-                {f}
-                <span className="smp-filter-count">
-                  {f === "All"
-                    ? teamData.length
-                    : teamData.filter((m) => m.status === f).length}
-                </span>
-              </button>
-            ))}
-          </div>
         </div>
 
-        <div className="smp-stats">
+        <div className="smp-stats st-stats-3">
           {[
             { label: "Total Members", value: totalMembers },
-            { label: "Active Now", value: activeMembers },
             { label: "Assigned Projects", value: totalProjects },
             { label: "Avg Completion", value: avgCompletion + "%" },
           ].map((s) => (
@@ -147,36 +154,27 @@ export default function SupervisorTeam() {
         </div>
 
         {filtered.length === 0 ? (
-          <div className="smp-empty">No team members match your search.</div>
+          <div className="smp-empty">
+            {team.length === 0
+              ? "No interns have been assigned tasks yet."
+              : "No team members match your search."}
+          </div>
         ) : (
           <div className="st-grid">
             {filtered.map((member) => {
               const pct = Math.round(
-                (member.tasksCompleted / member.tasksTotal) * 100
-              );
+  (member.progressSum / (member.tasksTotal || 1))
+);
               return (
                 <div className="st-card" key={member.id}>
                   <div className="st-card-top">
-                    <span
-                      className="st-avatar"
-                      style={{ background: member.color }}
-                    >
+                    <span className="st-avatar" style={{ background: member.color }}>
                       {member.initials}
-                    </span>
-                    <span
-                      className={
-                        member.status === "Active"
-                          ? "st-status-badge active"
-                          : "st-status-badge away"
-                      }
-                    >
-                      <span className="st-status-dot" />
-                      {member.status}
                     </span>
                   </div>
 
                   <h3 className="st-name">{member.name}</h3>
-                  <p className="st-role">{member.role}</p>
+                  <p className="st-role">{member.department}</p>
                   <p className="st-email">{member.email}</p>
 
                   <div className="st-divider" />

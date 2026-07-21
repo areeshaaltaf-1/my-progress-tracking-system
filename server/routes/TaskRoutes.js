@@ -61,7 +61,7 @@ router.post("/", authMiddleware, roleMiddleware(["Supervisor"]), async (req, res
 
     const populated = await task.populate([
       { path: "project", select: "projectName" },
-      { path: "assignedTo", select: "name" },
+     { path: "assignedTo", select: "name email department" },
     ]);
 
     res.status(201).json(populated);
@@ -78,7 +78,7 @@ router.get("/", authMiddleware, async (req, res) => {
 
     const tasks = await Task.find(filter).populate([
       { path: "project", select: "projectName" },
-      { path: "assignedTo", select: "name" },
+     { path: "assignedTo", select: "name email department" },
     ]);
     res.status(200).json(tasks);
   } catch (err) {
@@ -91,7 +91,7 @@ router.get("/:id", authMiddleware, async (req, res) => {
   try {
     const task = await Task.findById(req.params.id).populate([
       { path: "project", select: "projectName" },
-      { path: "assignedTo", select: "name" },
+      { path: "assignedTo", select: "name email department" },
     ]);
     if (!task) return res.status(404).json({ message: "Task not found" });
     res.status(200).json(task);
@@ -145,7 +145,7 @@ router.put(
         runValidators: true,
       }).populate([
         { path: "project", select: "projectName" },
-        { path: "assignedTo", select: "name" },
+        { path: "assignedTo", select: "name email department" },
       ]);
 
       await syncProjectStatus(updated.project._id);
