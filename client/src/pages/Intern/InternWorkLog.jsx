@@ -113,7 +113,7 @@ export default function InternWorkLog() {
         <h1 className="it-title">Work Log</h1>
         <p className="it-subtitle">Log the time and notes for what you worked on each day</p>
 
-        <div className="it-stats">
+        <div className="it-stats it-stats-2">
           <div className="it-stat-card">
             <span className="it-stat-label">TOTAL LOGGED</span>
             <span className="it-stat-value">{totalHours}h</span>
@@ -130,51 +130,56 @@ export default function InternWorkLog() {
           {tasks.length === 0 ? (
             <p className="it-subtitle">You have no assigned tasks to log time against yet.</p>
           ) : (
-            <>
-              <div className="wl-form-row">
-                <div className="wl-field">
-                  <label>Task</label>
-                  <select value={taskId} onChange={(e) => setTaskId(e.target.value)}>
-                    {tasks.map((t) => (
-                      <option key={t._id} value={t._id}>
-                        {t.title}
-                        {t.project?.projectName ? ` — ${t.project.projectName}` : ""}
-                      </option>
-                    ))}
-                  </select>
+            <div className="wl-form-grid">
+              <div className="wl-form-columns">
+                <div className="wl-form-left">
+                  <div className="wl-field">
+                    <label>Task</label>
+                    <select value={taskId} onChange={(e) => setTaskId(e.target.value)}>
+                      {tasks.map((t) => (
+                        <option key={t._id} value={t._id}>
+                          {t.title}
+                          {t.project?.projectName ? ` — ${t.project.projectName}` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="wl-field">
+                    <label>Hours</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      placeholder="e.g. 2.5"
+                      value={hours}
+                      onChange={(e) => setHours(e.target.value)}
+                    />
+                  </div>
                 </div>
-                <div className="wl-field wl-field-hours">
-                  <label>Hours</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.5"
-                    placeholder="e.g. 2.5"
-                    value={hours}
-                    onChange={(e) => setHours(e.target.value)}
-                  />
+
+                <div className="wl-form-right">
+                  <div className="wl-field wl-field-note">
+                    <label>What did you work on?</label>
+                    <textarea
+                      placeholder="Briefly describe what you did..."
+                      value={note}
+                      onChange={(e) => setNote(e.target.value)}
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="wl-field">
-                <label>What did you work on?</label>
-                <textarea
-                  rows={3}
-                  placeholder="Briefly describe what you did..."
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                />
+              <div className="wl-add-btn-row">
+                <button
+                  className="btn-primary wl-add-btn"
+                  onClick={handleAddLog}
+                  disabled={saving}
+                >
+                  {saving ? "Adding..." : "Add Entry"}
+                </button>
               </div>
-
-              <button
-  className="btn-primary"
-  style={{ maxWidth: "200px" }}
-  onClick={handleAddLog}
-  disabled={saving}
->
-  {saving ? "Adding..." : "Add Entry"}
-</button>
-            </>
+            </div>
           )}
         </div>
 

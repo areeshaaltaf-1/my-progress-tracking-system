@@ -1988,6 +1988,9 @@ body {
   display: grid; grid-template-columns: repeat(3, 1fr);
   gap: 16px; margin-bottom: 30px;
 }
+.it-stats-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
 
 .it-stat-card {
   background: #fff; border: 1px solid #e5e7eb; border-radius: 10px;
@@ -2049,9 +2052,9 @@ body {
 .it-badge.progress { background: #d1fae5; color: #059669; }
 .it-badge.notstarted { background: #f1f5f9; color: #64748b; }
 .it-badge.completed { background: #f1f5f9; color: #94a3b8; }
-
 .it-progress-track {
-  width: 160px;
+  flex: 1;             /* was width: 140px */
+  min-width: 80px;
   height: 6px;
   background: #f3f4f6;
   border-radius: 999px;
@@ -2132,15 +2135,61 @@ body {
 /* ============================================================
    INTERN WORK LOG PAGE
 ============================================================ */
-
 .wl-form-card {
   background: #fff; border: 1px solid #e5e7eb; border-radius: 10px;
   padding: 20px; margin-bottom: 28px;
-  display: flex; flex-direction: column; gap: 14px;
+  width: 100%; box-sizing: border-box;
 }
-.wl-form-row { display: flex; gap: 14px; }
-.wl-field { display: flex; flex-direction: column; gap: 6px; flex: 1; }
-.wl-field-hours { max-width: 120px; }
+
+.wl-form-grid {
+  display: flex;
+  flex-direction: column;
+}
+
+.wl-form-columns {
+  display: flex;
+  gap: 16px;
+  align-items: stretch;
+}
+
+.wl-form-left {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.wl-form-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.wl-field { display: flex; flex-direction: column; gap: 6px; }
+
+.wl-field-note {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.wl-field-note textarea {
+  flex: 1;
+  resize: none;
+}
+
+.wl-add-btn-row {
+  display: flex;
+  justify-content: center;
+  padding-top: 20px;
+}
+
+.wl-add-btn {
+  width: 150px;
+}
+
+
+
 
 .wl-field label {
   font-size: 11.5px; font-weight: 600; color: #374151;
@@ -2244,7 +2293,7 @@ body {
   border-left: 4px solid #e5e7eb;
   border-radius: 8px;
   padding: 16px 18px;
-  max-width: 850px;
+  width: 100%;        /* was max-width: 850px */
 }
 .it-row-compact.overdue { border-left-color: #ef4444; }
 .it-row-compact.completed { opacity: 0.65; }
