@@ -43,6 +43,16 @@ const taskSchema = new mongoose.Schema({
     enum: ["Pending", "In Progress", "Completed"],
     default: "Pending",
   },
+
+  deadlineWarned: {
+    type: Boolean,
+    default: false,
+  },
+
+  overdueNotified: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 module.exports = mongoose.model("Task", taskSchema);

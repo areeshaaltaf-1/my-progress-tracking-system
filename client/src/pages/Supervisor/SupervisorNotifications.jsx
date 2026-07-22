@@ -1,61 +1,62 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import SupervisorSidebar from "../../components/SupervisorSidebar";
+import api from "../../api/axios";
 import "../../assets/styles.css";
 
-const initialNotifications = [
-  {
-    id: 1,
-    title: "Task moved to Review",
-    message: "Hamza Malik moved 'Runbook: Credential dump response' to Review.",
-    time: "10 minutes ago",
-    unread: true,
-  },
-  {
-    id: 2,
-    title: "New comment on SOC Playbook Automation",
-    message: "Bilal Khan commented on the phishing-report triage playbook task.",
-    time: "1 hour ago",
-    unread: true,
-  },
-  {
-    id: 3,
-    title: "Deadline approaching",
-    message: "'Draft escalation matrix v2' is due in 2 days.",
-    time: "3 hours ago",
-    unread: true,
-  },
-  {
-    id: 4,
-    title: "Task completed",
-    message: "Zara Farooq marked 'Define playbook taxonomy & tagging' as Done.",
-    time: "Yesterday",
-    unread: false,
-  },
-  {
-    id: 5,
-    title: "New team member assigned",
-    message: "Noor Siddiqui was added to Vulnerability Management Pipeline.",
-    time: "2 days ago",
-    unread: false,
-  },
-];
+function timeAgo(dateString) {
+  const diffMs = Date.now() - new Date(dateString).getTime();
+  const mins = Math.floor(diffMs / 60000);
+  const hours = Math.floor(mins / 60);
+  const days = Math.floor(hours / 24);
+
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins} minute${mins === 1 ? "" : "s"} ago`;
+  if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+  if (days === 1) return "Yesterday";
+  return `${days} days ago`;
+}
 
 export default function SupervisorNotifications() {
-  const [notifications, setNotifications] = useState(initialNotifications);
+  const [notifications, setNotifications] = useState([]);
   const [filter, setFilter] = useState("All");
+  const [loading, setLoading] = useState(true);
 
-  const markAsRead = (id) => {
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const res = await api.get("/notifications");
+        setNotifications(res.data);
+      } catch (err) {
+        console.error("Failed to load notifications:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchNotifications();
+  }, []);
+
+  const markAsRead = async (id) => {
     setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, unread: false } : n))
+      prev.map((n) => (n._id === id ? { ...n, read: true } : n))
     );
+    try {
+      await api.put(`/notifications/${id}/read`);
+    } catch (err) {
+      console.error("Failed to mark notification as read:", err);
+    }
   };
 
-  const markAllRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
+  const markAllRead = async () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    try {
+      await api.put("/notifications/mark-all-read");
+    } catch (err) {
+      console.error("Failed to mark all as read:", err);
+    }
   };
 
   const filtered = notifications.filter((n) =>
-    filter === "Unread" ? n.unread : true
+    filter === "Unread" ? !n.read : true
   );
 
   return (
@@ -81,26 +82,28 @@ export default function SupervisorNotifications() {
             className={`filter-chip ${filter === "Unread" ? "active" : ""}`}
             onClick={() => setFilter("Unread")}
           >
-            Unread ({notifications.filter((n) => n.unread).length})
+            Unread ({notifications.filter((n) => !n.read).length})
           </button>
         </div>
 
         <div className="notif-list-card">
-          {filtered.length === 0 ? (
+          {loading ? (
+            <div className="empty-state">Loading...</div>
+          ) : filtered.length === 0 ? (
             <div className="empty-state">No notifications to show.</div>
           ) : (
             filtered.map((n) => (
               <div
-                key={n.id}
-                className={`notif-row ${n.unread ? "unread" : ""}`}
-                onClick={() => markAsRead(n.id)}
+                key={n._id}
+                className={`notif-row ${!n.read ? "unread" : ""}`}
+                onClick={() => markAsRead(n._id)}
               >
                 <div className="notif-top">
-                  {n.unread && <span className="dot" />}
+                  {!n.read && <span className="dot" />}
                   <h4 className="notif-title">{n.title}</h4>
                 </div>
                 <p className="notif-message">{n.message}</p>
-                <p className="notif-meta">{n.time}</p>
+                <p className="notif-meta">{timeAgo(n.createdAt)}</p>
               </div>
             ))
           )}

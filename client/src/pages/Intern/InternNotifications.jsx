@@ -1,54 +1,63 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import InternSidebar from "../../components/InternSidebar";
+import api from "../../api/axios";
 import "../../assets/styles.css";
 
-const initialNotifications = [
-  {
-    id: 1,
-    title: "Task flagged as overdue",
-    message: "'Close firewall gaps list' is now 2 days overdue. Bilal Khan has been notified.",
-    time: "10 minutes ago",
-    unread: true,
-  },
-  {
-    id: 2,
-    title: "Feedback on your task",
-    message: "Ahmed Raza left a comment on 'Automate phishing-report triage playbook'.",
-    time: "1 hour ago",
-    unread: true,
-  },
-  {
-    id: 3,
-    title: "New task assigned",
-    message: "You were assigned 'Write detection rules for lateral movement' by Ahmed Raza.",
-    time: "Yesterday",
-    unread: false,
-  },
-  {
-    id: 4,
-    title: "Task approved",
-    message: "'Define playbook taxonomy & tagging' was marked as completed.",
-    time: "2 days ago",
-    unread: false,
-  },
-];
+// Converts a timestamp into "10 minutes ago", "Yesterday", etc.
+function timeAgo(dateString) {
+  const diffMs = Date.now() - new Date(dateString).getTime();
+  const mins = Math.floor(diffMs / 60000);
+  const hours = Math.floor(mins / 60);
+  const days = Math.floor(hours / 24);
+
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins} minute${mins === 1 ? "" : "s"} ago`;
+  if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+  if (days === 1) return "Yesterday";
+  return `${days} days ago`;
+}
 
 export default function InternNotifications() {
-  const [notifications, setNotifications] = useState(initialNotifications);
+  const [notifications, setNotifications] = useState([]);
   const [filter, setFilter] = useState("All");
+  const [loading, setLoading] = useState(true);
 
-  const markAsRead = (id) => {
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const res = await api.get("/notifications");
+        setNotifications(res.data);
+      } catch (err) {
+        console.error("Failed to load notifications:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchNotifications();
+  }, []);
+
+  const markAsRead = async (id) => {
     setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, unread: false } : n))
+      prev.map((n) => (n._id === id ? { ...n, read: true } : n))
     );
+    try {
+      await api.put(`/notifications/${id}/read`);
+    } catch (err) {
+      console.error("Failed to mark notification as read:", err);
+    }
   };
 
-  const markAllRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
+  const markAllRead = async () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    try {
+      await api.put("/notifications/mark-all-read");
+    } catch (err) {
+      console.error("Failed to mark all as read:", err);
+    }
   };
 
   const filtered = notifications.filter((n) =>
-    filter === "Unread" ? n.unread : true
+    filter === "Unread" ? !n.read : true
   );
 
   return (
@@ -74,26 +83,28 @@ export default function InternNotifications() {
             className={`filter-chip ${filter === "Unread" ? "active" : ""}`}
             onClick={() => setFilter("Unread")}
           >
-            Unread ({notifications.filter((n) => n.unread).length})
+            Unread ({notifications.filter((n) => !n.read).length})
           </button>
         </div>
 
         <div className="notif-list-card">
-          {filtered.length === 0 ? (
+          {loading ? (
+            <div className="empty-state">Loading...</div>
+          ) : filtered.length === 0 ? (
             <div className="empty-state">No notifications to show.</div>
           ) : (
             filtered.map((n) => (
               <div
-                key={n.id}
-                className={`notif-row ${n.unread ? "unread" : ""}`}
-                onClick={() => markAsRead(n.id)}
+                key={n._id}
+                className={`notif-row ${!n.read ? "unread" : ""}`}
+                onClick={() => markAsRead(n._id)}
               >
                 <div className="notif-top">
-                  {n.unread && <span className="dot" />}
+                  {!n.read && <span className="dot" />}
                   <h4 className="notif-title">{n.title}</h4>
                 </div>
                 <p className="notif-message">{n.message}</p>
-                <p className="notif-meta">{n.time}</p>
+                <p className="notif-meta">{timeAgo(n.createdAt)}</p>
               </div>
             ))
           )}

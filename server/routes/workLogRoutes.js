@@ -4,6 +4,7 @@ const WorkLog = require("../models/WorkLog");
 const Task = require("../models/Task");
 const authMiddleware = require("../middleware/auth");
 const roleMiddleware = require("../middleware/role");
+const notify = require("../utils/notify");
 
 // Create a work log entry (Internee only — task must be assigned to them)
 router.post("/", authMiddleware, roleMiddleware(["Internee"]), async (req, res) => {
@@ -26,7 +27,7 @@ router.post("/", authMiddleware, roleMiddleware(["Internee"]), async (req, res) 
       return res.status(400).json({ message: "Hours must be between 0 and 24" });
     }
 
-    const entry = await WorkLog.create({
+   const entry = await WorkLog.create({
       task,
       user: req.user.id,
       hours,
@@ -36,8 +37,20 @@ router.post("/", authMiddleware, roleMiddleware(["Internee"]), async (req, res) 
     const populated = await entry.populate({
       path: "task",
       select: "title project",
-      populate: { path: "project", select: "projectName" },
+      populate: { path: "project", select: "projectName supervisor" },
     });
+
+    if (populated.task.project?.supervisor) {
+      await notify({
+        recipient: populated.task.project.supervisor,
+        type: "worklog_added",
+        title: "New work log entry",
+        message: `Logged ${hours}h on '${taskDoc.title}': ${note.trim()}`,
+        relatedTask: taskDoc._id,
+        relatedProject: populated.task.project._id,
+        triggeredBy: req.user.id,
+      });
+    }
 
     res.status(201).json(populated);
   } catch (err) {

@@ -5,6 +5,7 @@ const authMiddleware = require("../middleware/auth");
 const roleMiddleware = require("../middleware/role");
 const Task = require("../models/Task");
 const WorkLog = require("../models/WorkLog");
+const notify = require("../utils/notify");
 
 // Create project (Admin only)
 router.post("/create", authMiddleware, roleMiddleware(["Admin"]), async (req, res) => {
@@ -19,6 +20,17 @@ router.post("/create", authMiddleware, roleMiddleware(["Admin"]), async (req, re
       startDate,
       endDate,
     });
+
+    if (supervisor) {
+      await notify({
+        recipient: supervisor,
+        type: "project_created",
+        title: "New project assigned",
+        message: `You were assigned as supervisor for '${projectName}'.`,
+        relatedProject: project._id,
+        triggeredBy: req.user.id,
+      });
+    }
 
     const populated = await project.populate("supervisor", "name department");
     res.status(201).json(populated);

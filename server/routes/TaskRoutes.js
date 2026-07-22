@@ -6,6 +6,7 @@ const User = require("../models/User");
 const authMiddleware = require("../middleware/auth");
 const roleMiddleware = require("../middleware/role");
 const WorkLog = require("../models/WorkLog");
+const notify = require("../utils/notify");
 
 // Recalculates and saves a project's status based on its tasks' current statuses.
 // Fully bidirectional: can advance to "Ongoing"/"Completed" or fall back to "Pending"/"Ongoing".
@@ -14,7 +15,7 @@ async function syncProjectStatus(projectId) {
 
   let newStatus;
   if (tasks.length === 0) {
-    return; // no tasks — leave project status untouched
+    return;
   } else if (tasks.every((t) => t.status === "Completed")) {
     newStatus = "Completed";
   } else if (tasks.some((t) => t.status !== "Pending")) {
@@ -23,7 +24,23 @@ async function syncProjectStatus(projectId) {
     newStatus = "Pending";
   }
 
+  const projectDoc = await Project.findById(projectId);
+  const alreadyCompleted = projectDoc.status === "Completed";
+
   await Project.findByIdAndUpdate(projectId, { status: newStatus });
+
+  if (newStatus === "Completed" && !alreadyCompleted) {
+    const admins = await User.find({ role: "Admin" });
+    for (const admin of admins) {
+      await notify({
+        recipient: admin._id,
+        type: "project_completed",
+        title: "Project completed",
+        message: `'${projectDoc.projectName}' has been marked as Completed.`,
+        relatedProject: projectId,
+      });
+    }
+  }
 }
 
 // Create task (Supervisor only — must own the project, assignee must be an Internee)
@@ -59,9 +76,19 @@ router.post("/", authMiddleware, roleMiddleware(["Supervisor"]), async (req, res
 
     await syncProjectStatus(project);
 
+    await notify({
+      recipient: assignedTo,
+      type: "task_assigned",
+      title: "New task assigned",
+      message: `You were assigned '${title}' on ${projectDoc.projectName}.`,
+      relatedTask: task._id,
+      relatedProject: project,
+      triggeredBy: req.user.id,
+    });
+
     const populated = await task.populate([
       { path: "project", select: "projectName" },
-     { path: "assignedTo", select: "name email department" },
+      { path: "assignedTo", select: "name email department" },
     ]);
 
     res.status(201).json(populated);
@@ -78,7 +105,7 @@ router.get("/", authMiddleware, async (req, res) => {
 
     const tasks = await Task.find(filter).populate([
       { path: "project", select: "projectName" },
-     { path: "assignedTo", select: "name email department" },
+      { path: "assignedTo", select: "name email department" },
     ]);
     res.status(200).json(tasks);
   } catch (err) {
@@ -150,6 +177,40 @@ router.put(
 
       await syncProjectStatus(updated.project._id);
 
+      if (
+        req.user.role === "Internee" &&
+        existing.project?.supervisor &&
+        updateFields.status !== undefined &&
+        updateFields.status !== existing.status
+      ) {
+        await notify({
+          recipient: existing.project.supervisor,
+          type: "task_status_changed",
+          title: `Task moved to ${updateFields.status}`,
+          message: `'${existing.title}' was moved to ${updateFields.status}.`,
+          relatedTask: existing._id,
+          relatedProject: existing.project._id,
+          triggeredBy: req.user.id,
+        });
+      }
+
+      if (
+        req.user.role === "Internee" &&
+        existing.project?.supervisor &&
+        updateFields.progress !== undefined &&
+        updateFields.progress > existing.progress
+      ) {
+        await notify({
+          recipient: existing.project.supervisor,
+          type: "task_progress_updated",
+          title: "Progress updated",
+          message: `Progress on '${existing.title}' updated to ${updateFields.progress}%.`,
+          relatedTask: existing._id,
+          relatedProject: existing.project._id,
+          triggeredBy: req.user.id,
+        });
+      }
+
       res.status(200).json(updated);
     } catch (err) {
       res.status(500).json(err);
@@ -171,7 +232,7 @@ router.delete("/:id", authMiddleware, roleMiddleware(["Admin", "Supervisor"]), a
     }
 
     await WorkLog.deleteMany({ task: req.params.id });
-await Task.findByIdAndDelete(req.params.id);
+    await Task.findByIdAndDelete(req.params.id);
 
     await syncProjectStatus(existing.project._id);
 

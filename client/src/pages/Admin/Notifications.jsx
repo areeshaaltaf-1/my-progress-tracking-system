@@ -1,68 +1,65 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect } from "react";
 import Sidebar from "../../components/Sidebar";
 import Navbar from "../../components/Navbar";
+import api from "../../api/axios";
 import "../../assets/styles.css";
 
-// ---- Mock data (swap for API data once Express/Mongo is connected) ----
-const MOCK_NOTIFICATIONS = [
-  {
-    id: 1,
-    title: "Task deadline approaching",
-    message: "\"Harden firewall rule set\" is due in 2 days.",
-    time: "10 min ago",
-    read: false,
-  },
-  {
-    id: 2,
-    title: "Task marked complete",
-    message: "Ahmed Raza completed \"Publish dashboard widgets v2\".",
-    time: "1 hour ago",
-    read: false,
-  },
-  {
-    id: 3,
-    title: "Task overdue",
-    message: "\"Configure SIEM alert rules\" passed its deadline.",
-    time: "3 hours ago",
-    read: false,
-  },
-  {
-    id: 4,
-    title: "New task assigned",
-    message: "You assigned \"Draft phishing email templates\" to Zara Fatima.",
-    time: "Yesterday",
-    read: true,
-  },
-  {
-    id: 5,
-    title: "Progress updated",
-    message: "Bilal Khan updated progress to 20% on \"Harden firewall rule set\".",
-    time: "Yesterday",
-    read: true,
-  },
-];
+function timeAgo(dateString) {
+  const diffMs = Date.now() - new Date(dateString).getTime();
+  const mins = Math.floor(diffMs / 60000);
+  const hours = Math.floor(mins / 60);
+  const days = Math.floor(hours / 24);
+
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins} minute${mins === 1 ? "" : "s"} ago`;
+  if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+  if (days === 1) return "Yesterday";
+  return `${days} days ago`;
+}
 
 export default function Notifications() {
-  const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState([]);
   const [showUnreadOnly, setShowUnreadOnly] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const unreadCount = useMemo(
-    () => notifications.filter((n) => !n.read).length,
-    [notifications]
-  );
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const res = await api.get("/notifications");
+        setNotifications(res.data);
+      } catch (err) {
+        console.error("Failed to load notifications:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchNotifications();
+  }, []);
+
+  const unreadCount = notifications.filter((n) => !n.read).length;
 
   const visible = showUnreadOnly
     ? notifications.filter((n) => !n.read)
     : notifications;
 
-  const markAsRead = (id) => {
+  const markAsRead = async (id) => {
     setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+      prev.map((n) => (n._id === id ? { ...n, read: true } : n))
     );
+    try {
+      await api.put(`/notifications/${id}/read`);
+    } catch (err) {
+      console.error("Failed to mark notification as read:", err);
+    }
   };
 
-  const markAllAsRead = () => {
+  const markAllAsRead = async () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    try {
+      await api.put("/notifications/mark-all-read");
+    } catch (err) {
+      console.error("Failed to mark all as read:", err);
+    }
   };
 
   return (
@@ -101,26 +98,29 @@ export default function Notifications() {
           </div>
 
           <div className="notif-list-card">
-            {visible.length === 0 && (
+            {loading && <div className="empty-state">Loading...</div>}
+
+            {!loading && visible.length === 0 && (
               <div className="empty-state">No notifications here.</div>
             )}
 
-            {visible.map((n) => (
-              <div
-                key={n.id}
-                className={`notif-row ${n.read ? "" : "unread"}`}
-                onClick={() => markAsRead(n.id)}
-              >
-                <div className="notif-body">
-                  <div className="notif-top">
-                    <p className="notif-title">{n.title}</p>
-                    {!n.read && <span className="dot" />}
+            {!loading &&
+              visible.map((n) => (
+                <div
+                  key={n._id}
+                  className={`notif-row ${n.read ? "" : "unread"}`}
+                  onClick={() => markAsRead(n._id)}
+                >
+                  <div className="notif-body">
+                    <div className="notif-top">
+                      <p className="notif-title">{n.title}</p>
+                      {!n.read && <span className="dot" />}
+                    </div>
+                    <p className="notif-message">{n.message}</p>
+                    <p className="notif-meta">{timeAgo(n.createdAt)}</p>
                   </div>
-                  <p className="notif-message">{n.message}</p>
-                  <p className="notif-meta">{n.time}</p>
                 </div>
-              </div>
-            ))}
+              ))}
           </div>
         </div>
       </div>
