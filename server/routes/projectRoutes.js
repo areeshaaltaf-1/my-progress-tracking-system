@@ -40,6 +40,8 @@ router.post("/create", authMiddleware, roleMiddleware(["Admin"]), async (req, re
 });
 
 // Get all projects (any logged-in user)
+// Get all projects — Admin sees all, Supervisor sees only their own
+// Get all projects (any logged-in user)
 router.get("/", authMiddleware, async (req, res) => {
   try {
     const projects = await Project.find().populate("supervisor", "name department");

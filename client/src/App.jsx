@@ -17,6 +17,7 @@ import InternWorkLog from "./pages/Intern/InternWorkLog";
 import InternMyProjects from "./pages/Intern/InternMyProjects";
 import InternNotifications from "./pages/Intern/InternNotifications";
 import { ToastProvider } from "./context/ToastContext";
+import { NotificationProvider } from "./context/NotificationContext";
 
 // ✅ Protected Route component
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -34,6 +35,7 @@ const token = sessionStorage.getItem("token");
 function App() {
   return (
       <ToastProvider>
+        <NotificationProvider>
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Login />} />
@@ -133,6 +135,7 @@ function App() {
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </BrowserRouter>
+    </NotificationProvider>
   </ToastProvider>
   );
 }

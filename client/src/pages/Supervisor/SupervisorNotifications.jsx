@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import SupervisorSidebar from "../../components/SupervisorSidebar";
-import api from "../../api/axios";
+import { useNotifications } from "../../context/NotificationContext";
 import "../../assets/styles.css";
 
 function timeAgo(dateString) {
@@ -17,47 +17,11 @@ function timeAgo(dateString) {
 }
 
 export default function SupervisorNotifications() {
-  const [notifications, setNotifications] = useState([]);
-  const [filter, setFilter] = useState("All");
-  const [loading, setLoading] = useState(true);
+  const { notifications, loading, markAsRead, markAllRead, refetch } = useNotifications();
 
   useEffect(() => {
-    const fetchNotifications = async () => {
-      try {
-        const res = await api.get("/notifications");
-        setNotifications(res.data);
-      } catch (err) {
-        console.error("Failed to load notifications:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchNotifications();
-  }, []);
-
-  const markAsRead = async (id) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n._id === id ? { ...n, read: true } : n))
-    );
-    try {
-      await api.put(`/notifications/${id}/read`);
-    } catch (err) {
-      console.error("Failed to mark notification as read:", err);
-    }
-  };
-
-  const markAllRead = async () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-    try {
-      await api.put("/notifications/mark-all-read");
-    } catch (err) {
-      console.error("Failed to mark all as read:", err);
-    }
-  };
-
-  const filtered = notifications.filter((n) =>
-    filter === "Unread" ? !n.read : true
-  );
+    refetch();
+  }, [refetch]);
 
   return (
     <div className="smp-layout">
@@ -71,28 +35,13 @@ export default function SupervisorNotifications() {
           </button>
         </div>
 
-        <div className="notif-filters">
-          <button
-            className={`filter-chip ${filter === "All" ? "active" : ""}`}
-            onClick={() => setFilter("All")}
-          >
-            All
-          </button>
-          <button
-            className={`filter-chip ${filter === "Unread" ? "active" : ""}`}
-            onClick={() => setFilter("Unread")}
-          >
-            Unread ({notifications.filter((n) => !n.read).length})
-          </button>
-        </div>
-
         <div className="notif-list-card">
           {loading ? (
             <div className="empty-state">Loading...</div>
-          ) : filtered.length === 0 ? (
+          ) : notifications.length === 0 ? (
             <div className="empty-state">No notifications to show.</div>
           ) : (
-            filtered.map((n) => (
+            notifications.map((n) => (
               <div
                 key={n._id}
                 className={`notif-row ${!n.read ? "unread" : ""}`}

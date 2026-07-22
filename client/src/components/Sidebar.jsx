@@ -1,6 +1,7 @@
 import logo from "../assets/logo-bg.png";
 import "../assets/styles.css";
 import { NavLink, useNavigate } from "react-router-dom";
+import { useNotifications } from "../context/NotificationContext";
 
 function Sidebar() {
   const navigate = useNavigate();
@@ -13,6 +14,7 @@ sessionStorage.removeItem("user");
   };
 
   const user = JSON.parse(sessionStorage.getItem("user") || "{}");
+  const { unreadCount } = useNotifications();
   const initials = user.name
     ? user.name.split(" ").map(n => n[0]).join("").toUpperCase()
     : "A";
@@ -72,6 +74,7 @@ sessionStorage.removeItem("user");
           {({ isActive }) => (
             <div className={isActive ? "menu-item active" : "menu-item"}>
               Notifications
+              {unreadCount > 0 && <span className="menu-badge">{unreadCount}</span>}
             </div>
           )}
         </NavLink>

@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import Sidebar from "../../components/Sidebar";
 import Navbar from "../../components/Navbar";
-import api from "../../api/axios";
+import { useNotifications } from "../../context/NotificationContext";
 import "../../assets/styles.css";
 
 function timeAgo(dateString) {
@@ -18,49 +18,16 @@ function timeAgo(dateString) {
 }
 
 export default function Notifications() {
-  const [notifications, setNotifications] = useState([]);
+  const { notifications, loading, unreadCount, markAsRead, markAllRead, refetch } = useNotifications();
   const [showUnreadOnly, setShowUnreadOnly] = useState(false);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchNotifications = async () => {
-      try {
-        const res = await api.get("/notifications");
-        setNotifications(res.data);
-      } catch (err) {
-        console.error("Failed to load notifications:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchNotifications();
-  }, []);
-
-  const unreadCount = notifications.filter((n) => !n.read).length;
+    refetch();
+  }, [refetch]);
 
   const visible = showUnreadOnly
     ? notifications.filter((n) => !n.read)
     : notifications;
-
-  const markAsRead = async (id) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n._id === id ? { ...n, read: true } : n))
-    );
-    try {
-      await api.put(`/notifications/${id}/read`);
-    } catch (err) {
-      console.error("Failed to mark notification as read:", err);
-    }
-  };
-
-  const markAllAsRead = async () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-    try {
-      await api.put("/notifications/mark-all-read");
-    } catch (err) {
-      console.error("Failed to mark all as read:", err);
-    }
-  };
 
   return (
     <div className="dashboard-layout">
@@ -77,7 +44,7 @@ export default function Notifications() {
                 {unreadCount > 0 ? `${unreadCount} unread` : "You're all caught up"}
               </p>
             </div>
-            <button className="btn-secondary" onClick={markAllAsRead}>
+            <button className="btn-secondary" onClick={markAllRead}>
               Mark all as read
             </button>
           </div>

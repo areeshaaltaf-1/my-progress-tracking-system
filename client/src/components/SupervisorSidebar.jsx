@@ -1,6 +1,7 @@
 import logo from "../assets/logo-bg.png";
 import "../assets/styles.css";
 import { NavLink, useNavigate } from "react-router-dom";
+import { useNotifications } from "../context/NotificationContext";
 
 function SupervisorSidebar() {
   const navigate = useNavigate();
@@ -13,6 +14,7 @@ sessionStorage.removeItem("user");
   };
 
 const user = JSON.parse(sessionStorage.getItem("user") || "{}");
+const { unreadCount } = useNotifications();
   const initials = user.name
     ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase()
     : "S";
@@ -61,7 +63,7 @@ const user = JSON.parse(sessionStorage.getItem("user") || "{}");
           {({ isActive }) => (
             <div className={isActive ? "ss-menu-item active" : "ss-menu-item"}>
               Notifications
-              <span className="ss-badge">3</span>
+             {unreadCount > 0 && <span className="ss-badge">{unreadCount}</span>}
             </div>
           )}
         </NavLink>

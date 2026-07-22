@@ -410,6 +410,10 @@ body {
   font-weight: 500;
   box-shadow: inset -3px 0 0 #14b8a6;
 }
+.menu-badge {
+  background: #f59e0b; color: #1e1300; font-size: 10.5px;
+  font-weight: 700; border-radius: 999px; padding: 1px 7px; line-height: 1.5;
+}
 
 .profile-section {
   margin-top: auto;
@@ -1258,12 +1262,29 @@ body {
 }
 .generate-field { display: flex; flex-direction: column; gap: 6px; min-width: 180px; flex: 1; }
 .generate-field label { font-size: 12px; font-weight: 600; color: #475569; }
-.generate-field select {
+.generate-field select,
+.generate-field input[type="text"] {
   border: 1px solid #e2e8f0; border-radius: 8px;
   padding: 9px 12px; font-size: 13px; color: #0f172a;
   outline: none; font-family: inherit;
 }
-.generate-field select:focus { border-color: #10b981; }
+.generate-field select:focus,
+.generate-field input[type="text"]:focus { border-color: #10b981; }
+
+.generate-field input[type="file"] {
+  border: 1px solid #e2e8f0; border-radius: 8px;
+  padding: 7px 10px; font-size: 12.5px; color: #475569;
+  font-family: inherit; background: #f8fafc; cursor: pointer;
+}
+.generate-field input[type="file"]::file-selector-button {
+  border: none; background: #10b981; color: #fff;
+  padding: 6px 12px; border-radius: 6px; font-size: 12px;
+  font-weight: 600; margin-right: 10px; cursor: pointer;
+  font-family: inherit;
+}
+.generate-field input[type="file"]::file-selector-button:hover {
+  background: #0ea371;
+}
 
 .reports-table-card {
   background: #fff; border: 1px solid #eef2f6;
