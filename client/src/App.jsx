@@ -6,7 +6,7 @@ import AllProjects from "./pages/Admin/AllProjects";
 import AllTasks from "./pages/Admin/AllTasks";
 import Notifications from "./pages/Admin/Notifications";
 import Reports from "./pages/Admin/Reports";
-import Settings from "./pages/Admin/Settings";
+
 import SupervisorProjectBoard from "./pages/Supervisor/SupervisorProjectBoard";
 import SupervisorMyProjects from "./pages/Supervisor/SupervisorMyProjects";
 import SupervisorTeam from "./pages/Supervisor/SupervisorTeam";
@@ -71,11 +71,7 @@ function App() {
             <Reports />
           </ProtectedRoute>
         } />
-        <Route path="/admin/dashboard/settings" element={
-          <ProtectedRoute allowedRoles={["admin"]}>
-            <Settings />
-          </ProtectedRoute>
-        } />
+        
 
         {/* Supervisor Routes */}
         <Route path="/supervisor/dashboard" element={

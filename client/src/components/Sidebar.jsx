@@ -87,13 +87,7 @@ sessionStorage.removeItem("user");
           )}
         </NavLink>
 
-        <NavLink to="/admin/dashboard/settings">
-          {({ isActive }) => (
-            <div className={isActive ? "menu-item active" : "menu-item"}>
-              Settings
-            </div>
-          )}
-        </NavLink>
+       
       </div>
 
       {/* Profile + Logout - matches Intern/Supervisor pattern */}

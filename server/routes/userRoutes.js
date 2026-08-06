@@ -4,6 +4,9 @@ const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const authMiddleware = require("../middleware/auth");
 const roleMiddleware = require("../middleware/role");
+const Project = require("../models/Project");
+const Task = require("../models/Task");
+const WorkLog = require("../models/WorkLog");
 
 router.post("/create", authMiddleware, roleMiddleware(["Admin"]), async (req, res) => {
   try {
@@ -42,11 +45,44 @@ router.get("/", authMiddleware, roleMiddleware(["Admin", "Supervisor"]), async (
 });
 router.delete("/:id", authMiddleware, roleMiddleware(["Admin"]), async (req, res) => {
   try {
-    const deletedUser = await User.findByIdAndDelete(req.params.id);
-    if (!deletedUser) {
+    const userToDelete = await User.findById(req.params.id);
+    if (!userToDelete) {
       return res.status(404).json({ message: "User not found" });
     }
-    res.status(200).json({ message: "User deleted successfully" });
+
+    if (userToDelete.role === "Supervisor") {
+      // Find all projects this supervisor owned
+      const projectsToDelete = await Project.find({ supervisor: req.params.id });
+      const projectIds = projectsToDelete.map((p) => p._id);
+
+      if (projectIds.length > 0) {
+        // Find all tasks under those projects
+        const tasksToDelete = await Task.find({ project: { $in: projectIds } });
+        const taskIds = tasksToDelete.map((t) => t._id);
+
+        if (taskIds.length > 0) {
+          await WorkLog.deleteMany({ task: { $in: taskIds } });
+          await Task.deleteMany({ project: { $in: projectIds } });
+        }
+
+        await Project.deleteMany({ _id: { $in: projectIds } });
+      }
+    }
+
+    if (userToDelete.role === "Internee") {
+      // Find all tasks assigned to this intern
+      const tasksToDelete = await Task.find({ assignedTo: req.params.id });
+      const taskIds = tasksToDelete.map((t) => t._id);
+
+      if (taskIds.length > 0) {
+        await WorkLog.deleteMany({ task: { $in: taskIds } });
+        await Task.deleteMany({ assignedTo: req.params.id });
+      }
+    }
+
+    await User.findByIdAndDelete(req.params.id);
+
+    res.status(200).json({ message: "User and related data deleted successfully" });
   } catch (err) {
     res.status(500).json(err);
   }

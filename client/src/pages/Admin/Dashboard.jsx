@@ -1,87 +1,138 @@
+import { useState, useEffect, useMemo } from "react";
 import Sidebar from "../../components/Sidebar";
 import Navbar from "../../components/Navbar";
-
+import api from "../../api/axios";
 import "../../assets/styles.css";
 import {
-  LineChart, Line, XAxis, YAxis, Tooltip,
+  BarChart, Bar, XAxis, YAxis, Tooltip,
   ResponsiveContainer, CartesianGrid
 } from "recharts";
 
-const productivityData = [
-  { week: "Wk 1", Completed: 12, Opened: 10 },
-  { week: "Wk 2", Completed: 18, Opened: 13 },
-  { week: "Wk 3", Completed: 15, Opened: 14 },
-  { week: "Wk 4", Completed: 22, Opened: 16 },
-  { week: "Wk 5", Completed: 20, Opened: 17 },
-  { week: "Wk 6", Completed: 28, Opened: 19 },
-  { week: "Wk 7", Completed: 26, Opened: 21 },
-  { week: "Wk 8", Completed: 35, Opened: 23 },
-];
+const AVATAR_PALETTE = ["#0891b2", "#db2777", "#7c3aed", "#10b981", "#d97706", "#2563eb"];
 
-const projects = [
-  {
-    name: "SOC Playbook Automation",
-    meta: "12 tasks · 2 May",
-    supervisor: "Ahmed Raza",
-    initials: "AR",
-    avatarColor: "#0891b2",
-    progress: 78,
-    progressColor: "#14b8a6",
-    tasks: "9/12",
-    deadline: "14 Jul",
-    deadlineColor: "#374151",
-    status: "On track",
-    statusColor: "#14b8a6",
-    statusBg: "#ccfbf1",
-  },
-  {
-    name: "Phishing Simulation Suite",
-    meta: "8 tasks · 18 May",
-    supervisor: "Zara Fatima",
-    initials: "ZF",
-    avatarColor: "#db2777",
-    progress: 45,
-    progressColor: "#fbbf24",
-    tasks: "4/8",
-    deadline: "02 Jul",
-    deadlineColor: "#d97706",
-    status: "At risk",
-    statusColor: "#d97706",
-    statusBg: "#fef3c7",
-  },
-  {
-    name: "Network Hardening Audit",
-    meta: "15 tasks · 30 Apr",
-    supervisor: "Bilal Khan",
-    initials: "BK",
-    avatarColor: "#7c3aed",
-    progress: 22,
-    progressColor: "#f87171",
-    tasks: "3/15",
-    deadline: "28 Jun",
-    deadlineColor: "#ef4444",
-    status: "Overdue",
-    statusColor: "#ef4444",
-    statusBg: "#fee2e2",
-  },
-  {
-    name: "SIEM Dashboard Revamp",
-    meta: "6 tasks · 10 Jun",
-    supervisor: "Ahmed Raza",
-    initials: "AR",
-    avatarColor: "#0891b2",
-    progress: 100,
-    progressColor: "#14b8a6",
-    tasks: "6/6",
-    deadline: "25 Jun",
-    deadlineColor: "#9ca3af",
-    status: "Completed",
-    statusColor: "#6b7280",
-    statusBg: "#f3f4f6",
-  },
-];
+function getInitials(name = "") {
+  const parts = name.trim().split(" ").filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function colorForId(id = "") {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = id.charCodeAt(i) + ((hash << 5) - hash);
+  return AVATAR_PALETTE[Math.abs(hash) % AVATAR_PALETTE.length];
+}
+
+function isOverdue(task) {
+  return task.deadline && new Date(task.deadline) < new Date() && task.status !== "Completed";
+}
+
+function projectStatusBadge(project, progress, hasOverdueTask) {
+  if (project.status === "Completed") {
+    return { label: "Completed", color: "#6b7280", bg: "#f3f4f6" };
+  }
+  if (hasOverdueTask) {
+    return { label: "Overdue", color: "#ef4444", bg: "#fee2e2" };
+  }
+  if (progress < 40) {
+    return { label: "At risk", color: "#d97706", bg: "#fef3c7" };
+  }
+  return { label: "On track", color: "#14b8a6", bg: "#ccfbf1" };
+}
+
+function progressColorFor(progress) {
+  if (progress >= 100) return "#14b8a6";
+  if (progress >= 60) return "#3b82f6";
+  if (progress >= 30) return "#fbbf24";
+  return "#f87171";
+}
 
 function Dashboard() {
+  const [projects, setProjects] = useState([]);
+  const [tasks, setTasks] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchAll = async () => {
+      try {
+        const [projRes, taskRes, userRes] = await Promise.all([
+          api.get("/projects"),
+          api.get("/tasks"),
+          api.get("/users"),
+        ]);
+        setProjects(projRes.data);
+        setTasks(taskRes.data);
+        setUsers(userRes.data);
+      } catch (err) {
+        console.error("Failed to load admin dashboard data", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchAll();
+  }, []);
+
+  const projectTasks = (projectId) => tasks.filter((t) => t.project?._id === projectId);
+
+  const projectProgress = (projectId) => {
+    const pTasks = projectTasks(projectId);
+    if (pTasks.length === 0) return 0;
+    const total = pTasks.reduce((sum, t) => sum + (t.progress || 0), 0);
+    return Math.round(total / pTasks.length);
+  };
+
+  const stats = useMemo(() => {
+    const activeProjects = projects.filter((p) => p.status !== "Completed").length;
+    const openTasks = tasks.filter((t) => t.status !== "Completed").length;
+    const overdueTasks = tasks.filter(isOverdue).length;
+    const completedTasks = tasks.filter((t) => t.status === "Completed").length;
+    const inProgressTasks = tasks.filter((t) => t.status === "In Progress").length;
+    const avgCompletion =
+      tasks.length === 0
+        ? 0
+        : Math.round(tasks.reduce((sum, t) => sum + (t.progress || 0), 0) / tasks.length);
+
+    const supervisorCount = users.filter((u) => u.role === "Supervisor").length;
+    const internCount = users.filter((u) => u.role === "Internee").length;
+
+    return {
+      activeProjects,
+      openTasks,
+      overdueTasks,
+      completedTasks,
+      inProgressTasks,
+      avgCompletion,
+      supervisorCount,
+      internCount,
+      totalTasks: tasks.length,
+    };
+  }, [projects, tasks, users]);
+
+  const priorityData = useMemo(() => {
+    const buckets = { Low: 0, Medium: 0, High: 0 };
+    tasks.forEach((t) => {
+      if (buckets[t.priority] !== undefined) buckets[t.priority]++;
+    });
+    return [
+      { priority: "Low", count: buckets.Low },
+      { priority: "Medium", count: buckets.Medium },
+      { priority: "High", count: buckets.High },
+    ];
+  }, [tasks]);
+
+  if (loading) {
+    return (
+      <div className="dashboard">
+        <Sidebar />
+        <div className="main-content">
+          <Navbar />
+          <p style={{ padding: "24px" }}>Loading dashboard…</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="dashboard">
       <Sidebar />
@@ -89,100 +140,104 @@ function Dashboard() {
       <div className="main-content">
         <Navbar />
 
-        {/* Header */}
         <div className="dashboard-header">
           <h1>Organization Overview</h1>
           <p>Real-time status across every division project.</p>
         </div>
 
-        {/* Stats Cards — now matches All Projects' compact card style */}
         <div className="ap-stats">
           <div className="ap-stat-card" style={{ borderLeftColor: "#14b8a6" }}>
-            <div className="ap-stat-num" style={{ color: "#14b8a6" }}>14</div>
+            <div className="ap-stat-num" style={{ color: "#14b8a6" }}>{stats.activeProjects}</div>
             <div className="ap-stat-label">Active Projects</div>
           </div>
           <div className="ap-stat-card" style={{ borderLeftColor: "#2563eb" }}>
-            <div className="ap-stat-num" style={{ color: "#2563eb" }}>86</div>
+            <div className="ap-stat-num" style={{ color: "#2563eb" }}>{stats.openTasks}</div>
             <div className="ap-stat-label">Open Tasks</div>
           </div>
           <div className="ap-stat-card" style={{ borderLeftColor: "#ef4444" }}>
-            <div className="ap-stat-num" style={{ color: "#ef4444" }}>7</div>
+            <div className="ap-stat-num" style={{ color: "#ef4444" }}>{stats.overdueTasks}</div>
             <div className="ap-stat-label">Overdue Tasks</div>
           </div>
           <div className="ap-stat-card" style={{ borderLeftColor: "#d97706" }}>
-            <div className="ap-stat-num" style={{ color: "#d97706" }}>68%</div>
+            <div className="ap-stat-num" style={{ color: "#d97706" }}>{stats.avgCompletion}%</div>
             <div className="ap-stat-label">Avg Completion</div>
           </div>
         </div>
 
-        {/* Bottom Section */}
         <div className="bottom-section">
-
-          {/* Left — Chart */}
           <div className="chart-card">
-            <p className="section-label">PRODUCTIVITY — 8 WEEKS</p>
+            <p className="section-label">TASKS BY PRIORITY</p>
             <ResponsiveContainer width="100%" height={220}>
-              <LineChart data={productivityData}>
+              <BarChart data={priorityData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="week" tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
+                <XAxis dataKey="priority" tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} allowDecimals={false} />
                 <Tooltip />
-                <Line type="monotone" dataKey="Completed" stroke="#14b8a6" strokeWidth={2.5} dot={false} />
-                <Line type="monotone" dataKey="Opened" stroke="#93c5fd" strokeWidth={2} dot={false} strokeDasharray="5 4" />
-              </LineChart>
+                <Bar dataKey="count" fill="#14b8a6" radius={[4, 4, 0, 0]} />
+              </BarChart>
             </ResponsiveContainer>
-            <div className="chart-legend">
-              <span className="legend-item"><span className="legend-dot" style={{ background: "#14b8a6" }}></span>Completed</span>
-              <span className="legend-item"><span className="legend-dot" style={{ background: "#93c5fd" }}></span>Opened</span>
-            </div>
           </div>
 
-          {/* Right — Task Status */}
           <div className="status-card">
             <p className="section-label">TASK STATUS</p>
 
             <div className="status-row">
               <span className="status-name">Completed</span>
-              <span className="status-count">142</span>
+              <span className="status-count">{stats.completedTasks}</span>
             </div>
             <div className="progress-bar">
-              <div className="progress-fill" style={{ width: "54%", background: "#14b8a6" }}></div>
+              <div
+                className="progress-fill"
+                style={{
+                  width: `${stats.totalTasks ? (stats.completedTasks / stats.totalTasks) * 100 : 0}%`,
+                  background: "#14b8a6",
+                }}
+              ></div>
             </div>
 
             <div className="status-row">
               <span className="status-name">In Progress</span>
-              <span className="status-count">86</span>
+              <span className="status-count">{stats.inProgressTasks}</span>
             </div>
             <div className="progress-bar">
-              <div className="progress-fill" style={{ width: "33%", background: "#fbbf24" }}></div>
+              <div
+                className="progress-fill"
+                style={{
+                  width: `${stats.totalTasks ? (stats.inProgressTasks / stats.totalTasks) * 100 : 0}%`,
+                  background: "#fbbf24",
+                }}
+              ></div>
             </div>
 
             <div className="status-row">
               <span className="status-name">Overdue</span>
-              <span className="status-count">7</span>
+              <span className="status-count">{stats.overdueTasks}</span>
             </div>
             <div className="progress-bar">
-              <div className="progress-fill" style={{ width: "13%", background: "#f87171" }}></div>
+              <div
+                className="progress-fill"
+                style={{
+                  width: `${stats.totalTasks ? (stats.overdueTasks / stats.totalTasks) * 100 : 0}%`,
+                  background: "#f87171",
+                }}
+              ></div>
             </div>
 
             <p className="section-label" style={{ marginTop: "24px" }}>HEADCOUNT</p>
             <div className="headcount-row">
               <span>Supervisors</span>
-              <span className="headcount-num">5</span>
+              <span className="headcount-num">{stats.supervisorCount}</span>
             </div>
             <div className="headcount-row">
               <span>Internees</span>
-              <span className="headcount-num">22</span>
+              <span className="headcount-num">{stats.internCount}</span>
             </div>
           </div>
-
         </div>
 
-        {/* Projects Table */}
         <div className="projects-section">
           <div className="projects-header">
             <span className="section-label">PROJECTS — ALL DIVISIONS</span>
-            <a href="#" className="view-link">view workspace →</a>
           </div>
 
           <div className="table-wrapper">
@@ -198,40 +253,58 @@ function Dashboard() {
                 </tr>
               </thead>
               <tbody>
-                {projects.map((p, i) => (
-                  <tr key={i}>
-                    <td>
-                      <div className="project-name">{p.name}</div>
-                      <div className="project-meta">{p.meta}</div>
-                    </td>
-                    <td>
-                      <div className="supervisor-cell">
-                        <div className="avatar" style={{ background: p.avatarColor }}>
-                          {p.initials}
+                {projects.map((p) => {
+                  const pTasks = projectTasks(p._id);
+                  const progress = projectProgress(p._id);
+                  const completedCount = pTasks.filter((t) => t.status === "Completed").length;
+                  const hasOverdueTask = pTasks.some(isOverdue);
+                  const badge = projectStatusBadge(p, progress, hasOverdueTask);
+                  const supName = p.supervisor?.name || "Unassigned";
+                  const supInitials = p.supervisor ? getInitials(p.supervisor.name) : "?";
+                  const supColor = p.supervisor ? colorForId(p.supervisor._id) : "#9ca3af";
+
+                  return (
+                    <tr key={p._id}>
+                      <td>
+                        <div className="project-name">{p.projectName}</div>
+                        <div className="project-meta">
+                          {pTasks.length} tasks
+                          {p.startDate ? ` · ${new Date(p.startDate).toLocaleDateString()}` : ""}
                         </div>
-                        <span>{p.supervisor}</span>
-                      </div>
-                    </td>
-                    <td>
-                      <div className="table-progress-bar">
-                        <div className="table-progress-fill" style={{ width: `${p.progress}%`, background: p.progressColor }}></div>
-                      </div>
-                    </td>
-                    <td className="tasks-cell">{p.tasks}</td>
-                    <td className="deadline-cell" style={{ color: p.deadlineColor }}>{p.deadline}</td>
-                    <td>
-                      <span className="status-badge" style={{ color: p.statusColor, background: p.statusBg }}>
-                        <span className="status-dot" style={{ background: p.statusColor }}></span>
-                        {p.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td>
+                        <div className="supervisor-cell">
+                          <div className="avatar" style={{ background: supColor }}>
+                            {supInitials}
+                          </div>
+                          <span>{supName}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div className="table-progress-bar">
+                          <div
+                            className="table-progress-fill"
+                            style={{ width: `${progress}%`, background: progressColorFor(progress) }}
+                          ></div>
+                        </div>
+                      </td>
+                      <td className="tasks-cell">{completedCount}/{pTasks.length}</td>
+                      <td className="deadline-cell">
+                        {p.endDate ? new Date(p.endDate).toLocaleDateString() : "—"}
+                      </td>
+                      <td>
+                        <span className="status-badge" style={{ color: badge.color, background: badge.bg }}>
+                          <span className="status-dot" style={{ background: badge.color }}></span>
+                          {badge.label}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         </div>
-
       </div>
     </div>
   );

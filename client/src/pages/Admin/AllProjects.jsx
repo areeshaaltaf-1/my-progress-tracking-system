@@ -235,7 +235,7 @@ const handleCreate = async () => {
                     <td>
                       <div className="supervisor-cell">
                         <div className="avatar" style={{ background: "#0891b2" }}>
-                          {p.supervisor?.name?.[0]?.toUpperCase() || "?"}
+                         {p.supervisor?.name?.trim()?.[0]?.toUpperCase() || "?"}
                         </div>
                         <span>{p.supervisor?.name || "Unassigned"}</span>
                       </div>
